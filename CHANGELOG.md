@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- New "Combat" chat (before System in the list): a summary of your biggest hit per spell (you and your pet: amount, crit, target, hits; reset button), from the combat log when the client gives it to addons, and the game's own Combat Log window embedded below. Option, on by default.
+- New "Combat" chat (before System in the list): a summary of your biggest hit per spell (you and your pet: amount, crit, target, hits; reset button), read from the lines of the game's own Combat Log window (this client keeps the combat log API from addons; the API is used where a client gives it), and that window embedded below. `/ph combat sample` shows raw lines read. Option, on by default.
 - Option (on by default): minimize when combat starts; it opens again when the fight ends, if combat was what minimized it.
 - Every bubble uses the whole width of the chat (same margin on both sides), so the edges line up; your messages keep the text on the right. Option "Bubbles fit their text" for the previous look.
 - Fix: your own messages in channels, guild and group showed as someone else's (left side, with your name). On Forever names have a last name, so you are now recognized by your GUID; old saved messages are fixed by your full name.

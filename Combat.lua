@@ -65,8 +65,8 @@ function C:OnCLEU()
     local ok, _, sub, _, src, _, _, _, _, dstName, _, _, p12, p13, _, p15, _, _, p18, _, _, p21 =
         pcall(CombatLogGetCurrentEventInfo)
     if not ok then
-        C.status = "blocked"
         frame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        C:StartLog()
         return
     end
     if issecretvalue and (issecretvalue(sub) or issecretvalue(src)) then C.status = "secret" return end
@@ -81,9 +81,13 @@ function C:OnCLEU()
         id, name, amount, crit = p12, p13, p15, p21
     end
     if issecretvalue and issecretvalue(amount) then C.status = "secret" return end
-    if type(amount) ~= "number" or amount <= 0 then return end
-    local isPet = pet ~= nil and src == pet
-    local key = (isPet and "pet:" or "") .. tostring(id or name)
+    C:Record(id, name, amount, crit, dstName, pet ~= nil and src == pet)
+end
+
+-- One hit of mine (or my pet's): keeps the biggest per spell.
+function C:Record(id, name, amount, crit, dstName, isPet)
+    if type(amount) ~= "number" or amount <= 0 or not name then return end
+    local key = (isPet and "pet:" or "") .. tostring((id and id ~= 0) and id or name)
     local data = C:Data()
     local d = data[key]
     if not d then
@@ -110,12 +114,151 @@ end)
 -- The game may refuse the combat log to addons (Midnight-based clients): then
 -- the summary says so; the game's own Combat Log window still works below.
 function C:Start()
-    if not CombatLogGetCurrentEventInfo then C.status = "no-api" return end
-    local ok = pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
-    if not ok then C.status = "blocked" return end
     pcall(frame.RegisterEvent, frame, "UNIT_PET")
     pcall(frame.RegisterEvent, frame, "PLAYER_ENTERING_WORLD")
+    me = UnitGUID and UnitGUID("player")
+    pet = UnitGUID and UnitGUID("pet")
+    if ns.settings and ns.settings.clMode == "log" then C:StartLog() return end -- learned: no CLEU here
+    if not CombatLogGetCurrentEventInfo then C:StartLog() return end
+    local ok = pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
+    if not ok then C:StartLog() return end
     C.status = "waiting"
+end
+
+---------------------------------------------------------------------------
+-- Without the combat log API: read the lines of the game's Combat Log window
+-- (ChatFrame2). Its lines carry links: |Hunit:GUID:...|h name |h (who),
+-- |Hspell:ID...|h name |h (what), |Haction:EVENT...|h word |h (what happened).
+---------------------------------------------------------------------------
+local LOG_DAMAGE = { SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true, RANGE_DAMAGE = true,
+    SWING_DAMAGE = true, DAMAGE_SHIELD = true, SPELL_BUILDING_DAMAGE = true }
+
+local function G(name) local v = _G[name]; return type(v) == "string" and v ~= "" and v or nil end
+
+-- "Your" / "You" at the start of a line (client language), when units are not links.
+local function StartsWithMe(plain)
+    for _, k in ipairs({ "UNIT_YOU_SOURCE_POSSESSIVE", "UNIT_YOU_SOURCE", "UNIT_YOU" }) do
+        local w = G(k)
+        if w and plain:sub(1, #w) == w then return true end
+    end
+    return plain:sub(1, 5) == "Your " or plain:sub(1, 4) == "You "
+end
+
+local function IsCrit(raw, plain)
+    for _, k in ipairs({ "TEXT_MODE_A_STRING_RESULT_CRITICAL", "TEXT_MODE_A_STRING_RESULT_CRITICAL_SPELL",
+        "ACTION_SPELL_DAMAGE_CRITICAL", "ACTION_SWING_DAMAGE_CRITICAL", "ACTION_RANGE_DAMAGE_CRITICAL" }) do
+        local w = G(k)
+        if w and not w:find("%%") and plain:find(w, 1, true) then return true end
+    end
+    return plain:find(" crit ", 1, true) ~= nil or plain:find("(Critical)", 1, true) ~= nil
+end
+
+-- Lines without links: "Your Frostbolt hit Grunt 223 Frost." / "You crit Grunt 45."
+local function ActionWords()
+    local t = {}
+    for _, k in ipairs({ "ACTION_SPELL_DAMAGE", "ACTION_SWING_DAMAGE", "ACTION_RANGE_DAMAGE",
+        "ACTION_SPELL_PERIODIC_DAMAGE", "ACTION_SPELL_DAMAGE_CRITICAL", "ACTION_SWING_DAMAGE_CRITICAL" }) do
+        local w = G(k)
+        if w and not w:find("%%") then t[#t + 1] = w end
+    end
+    for _, w in ipairs({ "hit", "hits", "crit", "crits" }) do t[#t + 1] = w end
+    return t
+end
+
+function C:ParsePlain(text)
+    local poss = G("UNIT_YOU_SOURCE_POSSESSIVE") or "Your"
+    local you = G("UNIT_YOU_SOURCE") or "You"
+    local best, bestW
+    for _, w in ipairs(ActionWords()) do
+        local p = text:find(" " .. w .. " ", 1, true)
+        if p and (not best or p < best) then best, bestW = p, w end
+    end
+    if not best then return nil end
+    local before, after = text:sub(1, best - 1), text:sub(best + #bestW + 2)
+    local name
+    if before:sub(1, #poss + 1) == poss .. " " then
+        name = before:sub(#poss + 2)
+    elseif before == you then
+        name = L.MELEE
+    else
+        return nil
+    end
+    local target, num = after:match("^(.-) (%d[%d,%.]*)")
+    if not num then return nil end
+    local amount = tonumber((num:gsub("[^%d]", "")))
+    if not amount then return nil end
+    local crit = bestW:find("crit", 1, true) ~= nil or IsCrit(text, text)
+    return { id = 0, name = name, amount = amount, crit = crit, target = target, pet = false }
+end
+
+-- Returns { id, name, amount, crit, target, pet } for a damage line of mine, or nil.
+function C:ParseLine(raw)
+    if type(raw) ~= "string" then return nil end
+    me = me or (UnitGUID and UnitGUID("player"))
+    -- who: the first unit link; target: the second
+    local units = {}
+    for guid, name in raw:gmatch("|Hunit:([^:|]+)[^|]*|h(.-)|h") do units[#units + 1] = { guid = guid, name = name } end
+    local action = raw:match("|Haction:([%u_]+)")
+    local spellId, spellName = raw:match("|Hspell:(%d+)[^|]*|h(.-)|h")
+    local function Clean(t) return (t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("^%[", ""):gsub("%]$", "")) end
+    if spellName then spellName = Clean(spellName) end
+    for _, u in ipairs(units) do u.name = Clean(u.name) end
+    -- plain text: links -> their text (except units and spells, whose names may have digits), no colors / icons
+    local plain = raw:gsub("|Hunit:.-|h.-|h", ""):gsub("|Hspell:.-|h.-|h", "")
+    plain = plain:gsub("|H.-|h(.-)|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+    local isPet = false
+    if units[1] then
+        if units[1].guid == me then
+        elseif pet and units[1].guid == pet then isPet = true
+        else return nil end
+    else
+        local text = raw:gsub("|H.-|h(.-)|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+        if not StartsWithMe(text) then return nil end
+        if not spellId and not action then return C:ParsePlain(text) end -- no links at all
+    end
+    if action and not LOG_DAMAGE[action] then return nil end
+    local isSwing = action == "SWING_DAMAGE" or (not spellId and not action)
+    if not spellId and not isSwing then return nil end
+    -- the amount: first number left once names are out ("... hit Grunt 223 Frost. (63 Overkill)")
+    local num = plain:match("(%d[%d,%. ]*%d)") or plain:match("(%d+)")
+    if not num then return nil end
+    local amount = tonumber((num:gsub("[^%d]", "")))
+    if not amount then return nil end
+    if not action then
+        -- no action link: only lines that read like a hit (not heals / energize)
+        local heal = G("ACTION_SPELL_HEAL")
+        if heal and plain:find(" " .. heal .. " ", 1, true) then return nil end
+        if plain:find(" heal", 1, true) or plain:find(" gain", 1, true) then return nil end
+    end
+    local target = units[2] and units[2].name
+    if not target and spellName then target = nil end
+    return { id = tonumber(spellId) or 0, name = spellName or L.MELEE, amount = amount, crit = IsCrit(raw, plain),
+        target = target, pet = isPet }
+end
+
+local hooked
+function C:StartLog()
+    C.status = "log"
+    if ns.settings then ns.settings.clMode = "log" end
+    local cf = _G.ChatFrame2
+    if hooked or not (cf and hooksecurefunc and cf.AddMessage) then return end
+    hooked = true
+    hooksecurefunc(cf, "AddMessage", function(_, text)
+        if issecretvalue and issecretvalue(text) then C.status = "secret" return end
+        local ok, h = pcall(C.ParseLine, C, text)
+        local st = ns.settings
+        if st then -- a few raw lines, to adjust the reader if needed (/ph combat sample)
+            st.clSamples = st.clSamples or {}
+            if (ok and h) or #st.clSamples < 3 then
+                table.insert(st.clSamples, 1, (tostring(text):gsub("|", "||")))
+                while #st.clSamples > 8 do table.remove(st.clSamples) end
+            end
+        end
+        if ok and h then
+            if C.status ~= "log" then C.status = "log" end
+            C:Record(h.id, h.name, h.amount, h.crit, h.target, h.pet)
+        end
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -285,9 +428,10 @@ function C:Render()
     local msg
     if self.status == "blocked" or self.status == "no-api" then msg = L.CL_BLOCKED
     elseif self.status == "secret" then msg = L.CL_SECRET
+    elseif #list == 0 and self.status == "log" then msg = L.CL_LOG
     elseif #list == 0 then msg = L.CL_WAIT end
     v.note:SetText(#list == 0 and msg or "")
-    v.sub:SetText((#list > 0 and msg) and msg or L.CL_SUB:format(#list))
+    v.sub:SetText(L.CL_SUB:format(#list) .. (self.status == "log" and ("  -  " .. L.CL_FROMLOG) or ""))
     return #list
 end
 

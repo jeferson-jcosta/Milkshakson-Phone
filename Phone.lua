@@ -1846,6 +1846,9 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         -- a whisper that only exists on the phone (nothing is sent)
         local r = Route:Classify("CHAT_MSG_WHISPER", L.TEST_TEXT, L.TEST_FROM, "", "", L.TEST_FROM, "", 0, 0, "", 0, 0, "")
         if r then Safe(Store.Add, Store, r, ns:IsOpen(r.key)) end
+    elseif msg == "combat sample" then
+        local t = settings.clSamples
+        Notice("combat log", (t and #t > 0) and table.concat(t, "\n\n") or "-")
     elseif msg == "show channels" then
         settings.hiddenChannels = nil
         ns:Refresh()
