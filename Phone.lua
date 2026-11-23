@@ -1313,6 +1313,41 @@ end
 ---------------------------------------------------------------------------
 -- Events / slash
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- /ph test: a real whisper to yourself, with a report of what came back
+---------------------------------------------------------------------------
+local testLog
+local TEST_EVENTS = { "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_SYSTEM", "UI_ERROR_MESSAGE",
+    "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN", "CHAT_MSG_AFK", "CHAT_MSG_DND" }
+local testFrame = CreateFrame("Frame")
+testFrame:SetScript("OnEvent", function(_, event, a1, a2)
+    if not testLog then return end
+    local txt = (issecretvalue and issecretvalue(a1)) and "(secret)" or tostring(a1 or "")
+    if event == "UI_ERROR_MESSAGE" then txt = tostring(a2 or a1 or "") end
+    testLog[#testLog + 1] = event:gsub("^CHAT_MSG_", "") .. ": " .. txt:sub(1, 80)
+end)
+
+function ns:TestWhisper()
+    local me = UnitName("player")
+    local fn, name
+    if C_ChatInfo and C_ChatInfo.SendChatMessage then fn, name = C_ChatInfo.SendChatMessage, "C_ChatInfo.SendChatMessage"
+    elseif SendChatMessage then fn, name = SendChatMessage, "SendChatMessage" end
+    testLog = {}
+    for _, e in ipairs(TEST_EVENTS) do pcall(testFrame.RegisterEvent, testFrame, e) end
+    local head = "to: " .. tostring(me) .. "\nfunction: " .. tostring(name)
+    if not fn then Notice("/ph test", head .. "\nno send function in this client") return end
+    local ok, err = pcall(fn, L.TEST_TEXT, "WHISPER", nil, me)
+    head = head .. "\ncall: " .. (ok and "accepted" or ("error: " .. tostring(err)))
+    local function report()
+        testFrame:UnregisterAllEvents()
+        local lines = testLog or {}
+        testLog = nil
+        settings.lastTest = head .. "\n" .. table.concat(lines, "\n")
+        Notice("/ph test", head .. "\n\n" .. L.TEST_BACK .. "\n" .. (#lines > 0 and table.concat(lines, "\n") or L.TEST_NOTHING))
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(3, report) else report() end
+end
+
 local chat = CreateFrame("Frame")
 chat:SetScript("OnEvent", function(_, event, ...)
     if event == "WHO_LIST_UPDATE" then Safe(ns.WhoResult, ns) return end
@@ -1415,11 +1450,7 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
     elseif msg == "clear" then
         if StaticPopup_Show then StaticPopup_Show("MILKSHAKSON_PHONE_CLEAR", L.POPUP_CLEAR) end
     elseif msg == "test" then
-        -- a real whisper to yourself: the game sends it back as received and sent
-        local me = UnitName("player")
-        local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
-        local ok, err = pcall(send, L.TEST_TEXT, "WHISPER", nil, me)
-        if not ok then ShowError(err) end
+        Safe(ns.TestWhisper, ns)
     elseif msg == "test fake" then
         -- a whisper that only exists on the phone (nothing is sent)
         local r = Route:Classify("CHAT_MSG_WHISPER", L.TEST_TEXT, L.TEST_FROM, "", "", L.TEST_FROM, "", 0, 0, "", 0, 0, "")
