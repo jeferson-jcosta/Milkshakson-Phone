@@ -1040,6 +1040,14 @@ function ns:Layout()
     local min = settings.min and not ns.peek -- peek: minimized, opened by the mouse
     local inChat = openKey ~= nil and not min
     UpdateMinButtons(min)
+    -- Minimized: the game's typing box (always shown with some chat styles) would sit
+    -- over the header and take the mouse from the pills: invisible and click-through.
+    local e = ns.docked and EditBox()
+    if e then
+        local hide = min and not (e.HasFocus and e:HasFocus())
+        e:SetAlpha(hide and 0 or 1)
+        if e.EnableMouse then e:EnableMouse(not hide) end
+    end
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
@@ -1511,11 +1519,13 @@ local function Build()
     -- Typing (Enter) while minimized / hidden opens the phone.
     local e = EditBox()
     if e and e.HookScript then
-        e:HookScript("OnShow", function()
+        local function Typing()
             if not ns.docked then return end
             if not phone:IsShown() then phone:Show() end
             if settings.min and not ns.peek then ns:Minimize(false) end
-        end)
+        end
+        e:HookScript("OnShow", Typing)
+        e:HookScript("OnEditFocusGained", Typing) -- box always shown (chat style): Enter only focuses it
     end
     if hooksecurefunc and FCF_OpenTemporaryWindow then
         hooksecurefunc("FCF_OpenTemporaryWindow", function() if ns.replacing then ParkAll() end end)
