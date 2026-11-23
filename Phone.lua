@@ -1414,6 +1414,16 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         print(PREFIX .. L.RESET)
     elseif msg == "clear" then
         if StaticPopup_Show then StaticPopup_Show("MILKSHAKSON_PHONE_CLEAR", L.POPUP_CLEAR) end
+    elseif msg == "test" then
+        -- a real whisper to yourself: the game sends it back as received and sent
+        local me = UnitName("player")
+        local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+        local ok, err = pcall(send, L.TEST_TEXT, "WHISPER", nil, me)
+        if not ok then ShowError(err) end
+    elseif msg == "test fake" then
+        -- a whisper that only exists on the phone (nothing is sent)
+        local r = Route:Classify("CHAT_MSG_WHISPER", L.TEST_TEXT, L.TEST_FROM, "", "", L.TEST_FROM, "", 0, 0, "", 0, 0, "")
+        if r then Safe(Store.Add, Store, r, ns:IsOpen(r.key)) end
     elseif msg == "show channels" then
         settings.hiddenChannels = nil
         ns:Refresh()

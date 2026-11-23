@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- `/ph test`: sends a real whisper to yourself (to try the private chat); `/ph test fake`: a whisper that exists only on the phone.
 - System and NPC messages grouped in one chat, "System & NPCs", always last in the list and quiet: no unread count and no last message, open it to read. Option "Monitor the System chat" (off by default) shows the count and last message. Both kept by default again (each can be switched off); a new message in the quiet chat redraws nothing while it is closed.
 - Who (/who) shows the answer on the phone (name, level, race, class, zone, guild).
 - "More (game menu)" opens the game's player menu with this client's menu API (UnitPopup), with the older ones as fallback.

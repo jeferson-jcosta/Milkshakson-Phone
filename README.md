@@ -27,6 +27,7 @@ Only the game API is used; no other addon needed.
 | `/ph` (also `/mph`, `/phone`, `/mphone`) | Minimize / restore |
 | `/ph chat on` / `off` | Replace the game's chat, or keep it and use the phone as an extra window |
 | `/ph config` | Options |
+| `/ph test` / `/ph test fake` | A real whisper to yourself / a pretend one (only on the phone), to try it |
 | `/ph status` | Chats, messages, unread |
 | `/ph probe` | Checks the chat API this game client has |
 | `/ph reset` | Reset position and size |
