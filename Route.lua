@@ -61,12 +61,15 @@ local function Class(guid)
 end
 
 -- Returns { key, kind, name, target, chan, cls, msg } or nil[, "secret"].
-function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBase, _, _, guid, bnID)
+function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBase, _, lineID, guid, bnID)
     local t = (event or ""):gsub("^CHAT_MSG_", "")
     if R.Secret(text, sender, guid, chanIndex) then return nil, "secret" end
     local me = UnitName and UnitName("player")
     local msg = { t = time(), text = text or "", ev = t, tag = TAG[t], info = INFO[t] }
     local who = Short(sender)
+    -- full name + line id: what the game's player menu needs (whisper, invite, report...)
+    msg.full = Full(sender)
+    msg.line = tonumber(lineID)
 
     if WHISPER[t] then
         local full = Full(sender) or "?"

@@ -38,6 +38,7 @@ L.CLEAR_CONV     = "Clear messages"
 L.DELETE_CONV    = "Delete chat"
 L.TIP_BACK       = "Back to the chats"
 L.TIP_MIN        = "Minimize / restore (/ph)"
+L.TIP_PLAYER     = "Click: player menu (invite, add friend, ignore, report...)"
 L.TIP_OPTIONS    = "Options"
 
 L.HIDE_CHANNEL   = "Hide this channel"

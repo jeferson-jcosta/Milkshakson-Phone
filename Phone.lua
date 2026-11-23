@@ -586,6 +586,45 @@ end
 ---------------------------------------------------------------------------
 -- Conversation view
 ---------------------------------------------------------------------------
+-- Sender name as the game's player link: |Hplayer:Name-Realm:lineID|h Name |h
+local function PlayerLink(m)
+    if not m.full or m.out or not m.from then return m.from or "" end
+    return "|Hplayer:" .. m.full .. (m.line and (":" .. m.line) or "") .. "|h" .. m.from .. "|h"
+end
+ns.PlayerLink = PlayerLink
+
+-- Opens (or creates) the private chat with a player and starts typing to them.
+function ns:Whisper(full)
+    if not full or full == "" then return end
+    local short = full:gsub("%-.*$", "")
+    if Ambiguate then short = Ambiguate(full, "short") end
+    local c = Store:Ensure("w:" .. full:lower(), "whisper", short)
+    c.target = full
+    ns:Open(c.key)
+    ns:Compose()
+end
+
+-- The game's player menu (whisper, invite, add friend, ignore, report...).
+local function PlayerMenu(link, text, button)
+    if SetItemRef then SetItemRef(link, text or link, button or "RightButton", ChatFrame1) end
+end
+ns.PlayerMenu = PlayerMenu
+
+-- Click on a link in a bubble. Player name: left = private chat on the phone,
+-- right = game's player menu, shift / ctrl = the game's own behavior (/who...).
+function ns:OnLink(link, text, button)
+    local kind, rest = (link or ""):match("^(%a+):(.*)$")
+    if kind == "player" then
+        local name = rest:match("^([^:]+)")
+        local mod = (IsShiftKeyDown and IsShiftKeyDown()) or (IsControlKeyDown and IsControlKeyDown()) or (IsAltKeyDown and IsAltKeyDown())
+        if button == "LeftButton" and not mod then
+            ns:Whisper(name)
+            return
+        end
+    end
+    PlayerMenu(link, text, button)
+end
+
 local function Bubble(i)
     if bubbles[i] then return bubbles[i] end
     local b = CreateFrame("Frame", nil, chatContent)
@@ -599,7 +638,7 @@ local function Bubble(i)
     if b.SetHyperlinksEnabled then
         b:SetHyperlinksEnabled(true)
         b:SetScript("OnHyperlinkClick", function(_, link, text, button)
-            if SetItemRef then pcall(SetItemRef, link, text, button) end
+            Safe(ns.OnLink, ns, link, text, button)
         end)
     end
     bubbles[i] = b
@@ -686,7 +725,7 @@ local function PlaceMsg(c, m, maxW, group)
         local nw = 0
         if showName then
             local nc = ClassColor(m.cls) or COL.accent
-            b.name:SetText(m.from .. (m.tag == "leader" and (" (" .. L.LEADER .. ")") or ""))
+            b.name:SetText(PlayerLink(m) .. (m.tag == "leader" and (" (" .. L.LEADER .. ")") or ""))
             b.name:SetTextColor(nc[1], nc[2], nc[3])
             b.name:Show()
             nw = Num(b.name:GetUnboundedStringWidth(), 0)
@@ -994,6 +1033,26 @@ local function Build()
     chatTitle:SetPoint("TOPLEFT", chatIcon, "TOPRIGHT", 8, -1)
     chatTitle:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
     chatTitle:SetWordWrap(false)
+    -- Click the name of a private chat: the game's player menu.
+    local who = CreateFrame("Button", nil, ch)
+    who:SetPoint("TOPLEFT", chatIcon, "TOPLEFT")
+    who:SetPoint("BOTTOMRIGHT", chatTitle, "BOTTOMRIGHT", 0, -16)
+    who:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    who:SetScript("OnClick", function(self, button)
+        local c = Store:Get(openKey)
+        if c and c.kind == "whisper" and c.target then
+            Safe(PlayerMenu, "player:" .. c.target, c.target, "RightButton")
+        end
+    end)
+    who:SetScript("OnEnter", function(self)
+        local c = Store:Get(openKey)
+        if c and c.kind == "whisper" then
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(L.TIP_PLAYER)
+            GameTooltip:Show()
+        end
+    end)
+    who:SetScript("OnLeave", GameTooltip_Hide)
     chatSub = Font(ch, "GameFontHighlightSmall", COL.sub)
     chatSub:SetPoint("BOTTOMLEFT", chatIcon, "BOTTOMRIGHT", 8, 1)
     chatSub:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)

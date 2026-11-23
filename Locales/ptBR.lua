@@ -38,6 +38,7 @@ L.CLEAR_CONV     = "Limpar mensagens"
 L.DELETE_CONV    = "Apagar conversa"
 L.TIP_BACK       = "Voltar às conversas"
 L.TIP_MIN        = "Minimizar / restaurar (/ph)"
+L.TIP_PLAYER     = "Clique: menu do jogador (convidar, adicionar amigo, ignorar, denunciar...)"
 L.TIP_OPTIONS    = "Opções"
 
 L.HIDE_CHANNEL   = "Ocultar este canal"
