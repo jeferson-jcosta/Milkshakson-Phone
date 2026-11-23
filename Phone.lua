@@ -38,6 +38,36 @@ local openKey
 
 local function Num(v, d) return type(v) == "number" and v or d end
 
+-- Errors are shown on the phone itself (the game's chat may be hidden and
+-- script errors are often turned off): red text over the chat, click to close.
+local errorBox
+local function ShowError(err)
+    err = tostring(err)
+    if settings then
+        settings.errors = (settings.errors or 0) + 1
+        settings.lastError = err
+    end
+    if errorBox then
+        errorBox.text:SetText("|cffff5050Milkshakson-Phone error|r (click to close)\n" .. err)
+        errorBox:Show()
+    else
+        print("|cffff5050[Phone] error:|r " .. err)
+    end
+end
+ns.ShowError = ShowError
+
+local function Trace(e)
+    return tostring(e) .. "\n" .. ((debugstack and debugstack(2, 8, 0)) or "")
+end
+
+-- Runs f(...) and shows any error instead of failing silently.
+local function Safe(f, ...)
+    local ok, err = xpcall(f, Trace, ...)
+    if not ok then ShowError(err) end
+    return ok
+end
+ns.Safe = Safe
+
 local function Tex(parent, layer, c, a)
     local t = parent:CreateTexture(nil, layer or "BACKGROUND")
     t:SetColorTexture(c[1], c[2], c[3], a or 1)
@@ -304,17 +334,23 @@ local function ChanKey(name) return "c:" .. name:lower() end
 -- then channel conversations with messages that are not joined now.
 local function Channels()
     local t, seen = {}, {}
-    if GetChannelList then
-        local list = { GetChannelList() }
-        for i = 1, #list, 3 do
-            local id, name = list[i], list[i + 1]
-            if type(name) == "string" and name ~= "" then
-                name = name:match("^(.-) %- ") or name
-                local c = Store:Ensure(ChanKey(name), "channel", name)
-                c.chan = tonumber(id) or c.chan
-                if not seen[c.key] then seen[c.key] = true; t[#t + 1] = { conv = c, joined = true } end
-            end
+    local function add(id, name)
+        if type(name) ~= "string" or name == "" or (tonumber(id) or 0) <= 0 then return end
+        name = name:match("^(.-) %- ") or name
+        local c = Store:Ensure(ChanKey(name), "channel", name)
+        c.chan = tonumber(id)
+        if not seen[c.key] then seen[c.key] = true; t[#t + 1] = { conv = c, joined = true } end
+    end
+    -- GetChannelName(n) -> id, name: the same on every client version.
+    if GetChannelName then
+        for n = 1, 20 do
+            local id, name = GetChannelName(n)
+            add(id, name)
         end
+    end
+    if #t == 0 and GetChannelList then
+        local list = { GetChannelList() }
+        for i = 1, #list, 3 do add(list[i], list[i + 1]) end
     end
     local rest = {}
     for _, c in pairs(Store:Char().convs) do
@@ -651,7 +687,7 @@ local function UpdateTitle()
 end
 
 local pending
-function ns:Refresh(key)
+local function DoRefresh(_, key)
     if not phone then return end
     UpdateTitle()
     RenderList()
@@ -667,7 +703,7 @@ local function Later()
     if C_Timer and C_Timer.After then C_Timer.After(0.05, run) else run() end
 end
 
-function ns:Open(key)
+local function DoOpen(_, key)
     openKey = key
     settings.lastOpen = key
     settings.min = false
@@ -679,6 +715,9 @@ function ns:Open(key)
     UpdateTitle()
     RenderList()
 end
+
+function ns:Refresh(key) return Safe(DoRefresh, ns, key) end
+function ns:Open(key) return Safe(DoOpen, ns, key) end
 
 function ns:Back()
     openKey = nil
@@ -843,6 +882,18 @@ local function Build()
     bt:SetText(L.BLOCKED)
     banner:Hide()
 
+    errorBox = CreateFrame("Button", nil, phone)
+    errorBox:SetPoint("TOPLEFT", phone, "TOPLEFT", 6, -STATUS_H - 6)
+    errorBox:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", -6, INPUT_H + 14)
+    errorBox:SetFrameLevel(phone:GetFrameLevel() + 40)
+    Tex(errorBox, "BACKGROUND", { 0.1, 0, 0 }, 0.95):SetAllPoints()
+    errorBox.text = Font(errorBox, "GameFontHighlightSmall", COL.text)
+    errorBox.text:SetPoint("TOPLEFT", 8, -8)
+    errorBox.text:SetPoint("BOTTOMRIGHT", -8, 8)
+    errorBox.text:SetJustifyV("TOP")
+    errorBox:SetScript("OnClick", function(self) self:Hide() end)
+    errorBox:Hide()
+
     grip = CreateFrame("Button", nil, phone)
     grip:SetSize(14, 14)
     grip:SetPoint("BOTTOMRIGHT", -3, 3)
@@ -919,12 +970,12 @@ chat:SetScript("OnEvent", function(_, event, ...)
         if why == "secret" then ns:Blocked(event) end
         return
     end
-    Store:Add(r, ns:IsOpen(r.key))
+    Safe(Store.Add, Store, r, ns:IsOpen(r.key))
 end)
 
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("ADDON_LOADED")
-ev:SetScript("OnEvent", function(self, event, ...)
+local function OnEvent(self, event, ...)
     if event == "ADDON_LOADED" then
         if ... ~= ADDON then return end
         self:UnregisterEvent("ADDON_LOADED")
@@ -980,7 +1031,8 @@ ev:SetScript("OnEvent", function(self, event, ...)
     else
         UpdateStatus()
     end
-end)
+end
+ev:SetScript("OnEvent", function(self, event, ...) Safe(OnEvent, self, event, ...) end)
 
 SLASH_MILKSHAKSONPHONE1 = "/phone"
 SLASH_MILKSHAKSONPHONE2 = "/mphone"
