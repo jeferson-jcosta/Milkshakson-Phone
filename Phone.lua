@@ -324,6 +324,21 @@ function ns:Compose()
     if open then pcall(open, "", ChatFrame1) end
 end
 
+-- Where the docked typing box sits: on the input bar, or (minimized) below the
+-- phone, outside its clipped area, so it covers neither the pills nor the + button.
+function ns:PlaceEditBox(min)
+    local e = ns.docked and EditBox()
+    if not e then return end
+    e:ClearAllPoints()
+    if min then
+        e:SetPoint("TOPLEFT", phone, "BOTTOMLEFT", 0, -40)
+        e:SetPoint("TOPRIGHT", phone, "BOTTOMRIGHT", 0, -40)
+    else
+        e:SetPoint("TOPLEFT", inputBar, "TOPLEFT", -2, 2)
+        e:SetPoint("BOTTOMRIGHT", inputBar, "BOTTOMRIGHT", 2, -2)
+    end
+end
+
 local ebHome -- { parent, points } of the edit box before docking
 local function DockEditBox(on)
     local e = EditBox()
@@ -334,10 +349,8 @@ local function DockEditBox(on)
             for i = 1, Num(e:GetNumPoints(), 0) do ebHome.points[i] = { e:GetPoint(i) } end
         end
         e:SetParent(phone)
-        e:ClearAllPoints()
-        e:SetPoint("TOPLEFT", inputBar, "TOPLEFT", -2, 2)
-        e:SetPoint("BOTTOMRIGHT", inputBar, "BOTTOMRIGHT", 2, -2)
         ns.docked = true
+        ns:PlaceEditBox(false)
     elseif ebHome then
         e:SetParent(ebHome.parent)
         e:ClearAllPoints()
@@ -1045,6 +1058,7 @@ function ns:Layout()
     local e = ns.docked and EditBox()
     if e then
         local hide = min and not (e.HasFocus and e:HasFocus())
+        ns:PlaceEditBox(hide)
         e:SetAlpha(hide and 0 or 1)
         if e.EnableMouse then e:EnableMouse(not hide) end
     end
