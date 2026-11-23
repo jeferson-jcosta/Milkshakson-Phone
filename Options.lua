@@ -16,6 +16,7 @@ function ns:BuildOptions(db)
     UI:Note(p, L.CFG_ALIGN)
     UI:Radio(p, { { "messenger", L.ALIGN_MESSENGER }, { "left", L.ALIGN_LEFT }, { "right", L.ALIGN_RIGHT } },
         function() return db.align end, function(v) db.align = v; if ns.Redraw then ns:Redraw() end end)
+    UI:Check(p, L.CFG_COMBAT, L.CFG_COMBAT_TIP, function() return db.combatMinimize end, function(v) db.combatMinimize = v end)
     UI:Check(p, L.CFG_HOVER, L.CFG_HOVER_TIP, function() return db.hoverExpand end, function(v) db.hoverExpand = v end)
     UI:Check(p, L.CFG_ANIMATE, nil, function() return db.animate end, function(v) db.animate = v end)
     UI:Slider(p, L.CFG_ANIM_TIME, 0.05, 1, 0.05, "%.2f s", function() return db.animTime end,

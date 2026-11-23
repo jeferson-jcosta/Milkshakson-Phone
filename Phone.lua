@@ -1331,6 +1331,7 @@ function ns:Minimize(v)
         return
     end
     if v == nil then v = not settings.min end
+    if InCombatLockdown and InCombatLockdown() and ns.combatMin and not v then ns.combatMin = nil end -- restored by hand in combat
     settings.min = v and true or false
     if v then ns.holdPeek = true end -- minimized by hand: no hover-open until the mouse leaves
     ns:Layout()
@@ -1739,7 +1740,8 @@ local function OnEvent(self, event, ...)
         pcall(chat.RegisterEvent, chat, "WHO_LIST_UPDATE")
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
-            "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE" }) do
+            "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE",
+            "PLAYER_REGEN_DISABLED" }) do
             pcall(self.RegisterEvent, self, e)
         end
         ns:BuildOptions(settings)
@@ -1771,7 +1773,19 @@ local function OnEvent(self, event, ...)
         else
             ns:AutoJoin()
         end
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        -- option: minimize when combat starts (and restore after, if combat did it)
+        if settings.combatMinimize and not settings.min then
+            ns.combatMin = true
+            ns.peek = false
+            ns:Minimize(true)
+            ns.holdPeek = nil
+        end
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
+        if event == "PLAYER_REGEN_ENABLED" and ns.combatMin then
+            ns.combatMin = nil
+            if settings.min and not ns.peek then ns:Minimize(false) end
+        end
         ns:Unblock()
         if event == "PLAYER_REGEN_ENABLED" and ns.joinAfterCombat then ns:AutoJoin(); Later() end
         UpdateStatus()
