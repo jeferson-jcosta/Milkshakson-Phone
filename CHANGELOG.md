@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Smooth transition when minimizing / restoring (height eases in 0.18 s, the content fades in); option, on by default.
 - Option (on by default; uses the frame's own IsMouseOver): when minimized, the mouse over the phone opens it and leaving minimizes it again (after half a second; not while typing or with a menu open). A click on it while it is open this way restores it for good, like before. Clicking _ minimizes it until the mouse leaves.
 - Minimized: colored count pills for Guild (green), Party / Raid (blue / orange) and Whispers (pink), in the game's chat colors, only when there is something unread. Click one to open that chat (whispers: the latest).
 

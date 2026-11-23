@@ -949,6 +949,41 @@ function ns:More()
 end
 
 ---------------------------------------------------------------------------
+-- Height transition (minimize / restore): eased, content fades in
+---------------------------------------------------------------------------
+local ANIM_TIME = 0.18
+local anim = CreateFrame("Frame", nil, UIParent)
+anim:Hide()
+local function Fade(a)
+    for _, f in ipairs({ listScroll, chatView, inputBar }) do if f then f:SetAlpha(a) end end
+end
+anim:SetScript("OnUpdate", function(self, elapsed)
+    self.t = self.t + elapsed
+    local p = math.min(1, self.t / ANIM_TIME)
+    local e = p * p * (3 - 2 * p) -- smoothstep
+    phone:SetHeight(self.from + (self.to - self.from) * e)
+    if self.fadeIn then Fade(e) end
+    if p >= 1 then
+        self:Hide()
+        Fade(1)
+    end
+end)
+
+function ns:AnimateHeight(target, fadeIn)
+    local cur = Num(phone:GetHeight(), target)
+    if not settings.animate or math.abs(cur - target) < 1 or not phone:IsShown() then
+        anim:Hide()
+        phone:SetHeight(target)
+        Fade(1)
+        return
+    end
+    if anim:IsShown() and anim.to == target then return end -- already going there
+    anim.from, anim.to, anim.t, anim.fadeIn = cur, target, 0, fadeIn
+    if fadeIn then Fade(0) end
+    anim:Show()
+end
+
+---------------------------------------------------------------------------
 -- Layout / refresh
 ---------------------------------------------------------------------------
 function ns:Layout()
@@ -969,7 +1004,7 @@ function ns:Layout()
     chatView:SetShown(not min)
     inputBar:SetShown(not min)
     grip:SetShown(not min and not settings.locked)
-    phone:SetHeight(min and (STATUS_H + HEAD_H) or settings.h)
+    ns:AnimateHeight(min and (STATUS_H + HEAD_H) or settings.h, not min)
     local c = Store:Get(openKey)
     if inChat and c and ChatTarget(c) then
         inputText:SetText(L.INPUT_TO:format(Title(c)))
@@ -1261,6 +1296,7 @@ local function Build()
     phone:SetClampedToScreen(true)
     phone:SetMovable(true)
     phone:SetResizable(true)
+    if phone.SetClipsChildren then phone:SetClipsChildren(true) end -- content stays inside while the height moves
     phone:EnableMouse(true)
     if phone.SetResizeBounds then phone:SetResizeBounds(250, 260, 700, 1000) end
     Tex(phone, "BACKGROUND", COL.bg, 0.97):SetAllPoints()

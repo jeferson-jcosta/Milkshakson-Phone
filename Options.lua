@@ -12,6 +12,7 @@ function ns:BuildOptions(db)
     UI:Section(p, L.CFG_CHAT_SECTION)
     UI:Check(p, L.CFG_CHAT, L.CFG_CHAT_TIP, function() return db.replaceChat end, function(v) ns:SetReplace(v) end)
     UI:Check(p, L.CFG_HOVER, L.CFG_HOVER_TIP, function() return db.hoverExpand end, function(v) db.hoverExpand = v end)
+    UI:Check(p, L.CFG_ANIMATE, nil, function() return db.animate end, function(v) db.animate = v end)
     UI:Check(p, L.CFG_LOCK, nil, function() return db.locked end, function(v) db.locked = v or nil; ns:Layout() end)
     UI:Buttons(p, {
         { L.CFG_RESET, function() SlashCmdList.MILKSHAKSONPHONE("reset") end },
