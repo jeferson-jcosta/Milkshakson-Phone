@@ -55,7 +55,7 @@ local KIND_ICON = {
     party = "Interface\\Icons\\Ability_Warrior_RallyingCry", raid = "Interface\\Icons\\Ability_Warrior_BattleShout",
     instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_GroupNeedMore",
     channel = "Interface\\Icons\\INV_Letter_15", system = "Interface\\Icons\\INV_Misc_Gear_01",
-    npc = "Interface\\Icons\\Ability_Hunter_BeastCall",
+    npc = "Interface\\Icons\\Ability_Hunter_BeastCall", combat = "Interface\\Icons\\Ability_DualWield",
 }
 -- Channel icons by name (any client language): business, defense, zone map.
 local CHANNEL_ICON = {
@@ -147,6 +147,8 @@ local function Font(parent, template, c, justify)
     if FontScale() ~= 1 then ScaleFont(f) end
     return f
 end
+
+ns.Font = Font
 
 local function RowH() return math.floor(ROW_H * math.max(1, FontScale()) + 0.5) end
 ns.Fonts, ns.RowH = fonts, RowH
@@ -437,6 +439,7 @@ local function ApplyReplace(on)
         DockEditBox(true) -- before parking ChatFrame1 (its parent)
         ParkAll()
     else
+        if ns.Combat then ns.Combat:Embed(false) end -- the game's combat log back home first
         for f, p in pairs(parked) do f:SetParent(p) end
         wipe(parked)
         DockEditBox(false)
@@ -476,7 +479,7 @@ end
 -- Conversations switched off in the options (not stored, not listed).
 local function HiddenKinds()
     -- npc: older separate NPC chat (NPCs now go to System); system: listed apart, at the end
-    return { system = true, npc = true }
+    return { system = true, npc = true, combat = true }
 end
 
 -- System (+ NPCs): quiet unless monitored — no badge, no last message.
@@ -672,6 +675,9 @@ local function RenderList()
     for _, c in ipairs(Store:List(TopKeys(), HiddenKinds())) do
         if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then list[#list + 1] = c end
     end
+    if settings.combatLog then -- combat summary + the game's combat log
+        list[#list + 1] = Store:Ensure("combat", "combat")
+    end
     if settings.showSystem or settings.showNPC then -- always last
         list[#list + 1] = Store:Ensure("system", "system")
     end
@@ -687,10 +693,10 @@ local function RenderList()
         local cc = NameColor(c)
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
-        local quiet = Quiet(c)
+        local quiet = Quiet(c) or c.kind == "combat"
         if quiet then m = nil end
         r.time:SetText(m and ListTime(m.t) or "")
-        r.prev:SetText(m and Preview(c, m) or (quiet and L.QUIET or L.NO_MSGS))
+        r.prev:SetText(m and Preview(c, m) or (c.kind == "combat" and ns.Combat:Preview()) or (quiet and L.QUIET or L.NO_MSGS))
         local pc = TypeColor(m, c) or COL.sub
         r.prev:SetTextColor(pc[1], pc[2], pc[3])
         local n = quiet and 0 or (c.muted and (c.unseen or 0) or (c.unread or 0))
@@ -1126,7 +1132,8 @@ function ns:Layout()
         end
         listView:Show()
         listScroll:SetShown(not m)
-        chatView:SetShown(not m)
+        chatView:SetShown(not m and openKey ~= "combat")
+        if not m and openKey == "combat" then ns.Combat:Show() else ns.Combat:Hide() end
         inputBar:SetShown(not m)
         grip:SetShown(not m and not settings.locked)
     end
@@ -1563,6 +1570,11 @@ local function Build()
     chatSub:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
     chatSub:SetWordWrap(false)
     chatScroll, chatContent = Scroller(chatView, function() Safe(ns.More, ns) end)
+
+    -- Combat chat (right pane, in place of the conversation)
+    local cv = ns.Combat:Build(phone, listView, INPUT_H + 10, HEAD_H)
+    local minK = MinButton(cv.head)
+    minK:SetPoint("RIGHT", -10, 0)
     chatScroll:SetPoint("TOPLEFT", ch, "BOTTOMLEFT", 0, -2)
     chatScroll:SetPoint("BOTTOMRIGHT")
 
@@ -1636,7 +1648,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc", "MouseIsOver",
+    "C_BattleNet.GetAccountInfoByID", "CombatLogGetCurrentEventInfo", "ChatFrame2", "C_Spell.GetSpellTexture", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc", "MouseIsOver",
 }
 
 local function Lookup(path)
@@ -1749,6 +1761,7 @@ local function OnEvent(self, event, ...)
             "PLAYER_REGEN_DISABLED" }) do
             pcall(self.RegisterEvent, self, e)
         end
+        if settings.combatLog then ns.Combat:Start() end
         ns:BuildOptions(settings)
         if settings.replaceChat or settings.shown ~= false then phone:Show() else phone:Hide() end
         local first = settings.lastOpen or "guild"
@@ -1851,6 +1864,7 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         local ok, missing = ns:Probe()
         print(PREFIX .. L.PROBE_OK:format(#ok, table.concat(ok, ", ")))
         print(PREFIX .. L.PROBE_MISSING:format(#missing, #missing > 0 and table.concat(missing, ", ") or "-"))
+        print(PREFIX .. "combat log: " .. tostring(ns.Combat.status))
         local j = settings.lastJoin
         if j then print(PREFIX .. L.PROBE_JOIN:format(j.tried, j.joined ~= "" and j.joined or "-")) end
         local s = settings.secret

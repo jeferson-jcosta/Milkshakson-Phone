@@ -13,6 +13,7 @@ S.DEFAULTS = {
     showSystem = true,    -- system messages kept in the System chat (loot, XP, crafting...)
     showNPC = true,       -- NPC messages kept in the System chat too
     monitorSystem = false,
+    combatLog = true,     -- Combat chat: biggest hit per spell + the game's combat log
     hoverExpand = true,
     combatMinimize = true, -- minimize when combat starts, restore when it ends
     animate = true,       -- smooth minimize / restore
