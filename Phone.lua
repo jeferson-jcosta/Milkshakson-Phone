@@ -1081,6 +1081,10 @@ local function Pill(i)
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.15)
     b:SetScript("OnClick", function(self) if self.key then ns:Open(self.key) end end)
+    -- mouse over a pill (option): open the phone on that chat until the mouse leaves
+    b:SetScript("OnEnter", function(self)
+        if self.key and settings.hoverExpand and not ns.holdPeek then Safe(ns.Peek, ns, self.key) end
+    end)
     pills[i] = b
     return b
 end
@@ -1127,6 +1131,20 @@ local function Later()
     pending = true
     local function run() pending = false; ns:Refresh() end
     if C_Timer and C_Timer.After then C_Timer.After(0.25, run) else run() end
+end
+
+-- Opens the phone on a chat while it stays minimized (mouse over a pill).
+function ns:Peek(key)
+    if not (settings.min and not ns.peek) then return end
+    ns.peek = true
+    openKey = key
+    Store:Read(key)
+    local c = Store:Get(key)
+    if c then ns:SetSticky(c) end
+    ns:Layout()
+    RenderChat("open")
+    UpdateTitle()
+    RenderList()
 end
 
 local function DoOpen(_, key)
@@ -1231,8 +1249,7 @@ function ns:HoverTick(dt)
         return
     end
     if over then
-        outFor = 0
-        if not ns.peek and not ns.holdPeek then ns.peek = true; ns:Layout(); ns:Refresh() end
+        outFor = 0 -- (opening is done by the pills: mouse over a pill)
     elseif ns.peek then
         local e = EditBox()
         if (e and e.HasFocus and e:HasFocus()) or MenuOpen() then outFor = 0 return end
