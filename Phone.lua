@@ -1019,7 +1019,8 @@ local function RenderChat(mode)
     SetIcon(chatIcon, c)
 
     local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - LIST_W)
-    local maxW = math.floor(width * 0.8) - 16
+    -- long messages use the whole width (8 px margin each side + 8 px padding inside), so edges line up
+    local maxW = math.floor(width) - 16 - 18
     local msgs = c.msgs
     local stick = mode == "open" or (mode == nil and AtBottom())
     local from
