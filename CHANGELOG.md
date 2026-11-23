@@ -1,6 +1,9 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Who (/who) shows the answer on the phone (name, level, race, class, zone, guild).
+- "More (game menu)" opens the game's player menu with this client's menu API (UnitPopup), with the older ones as fallback.
+- Player actions that fail show the error on the phone instead of doing nothing.
 - Deleting the chat that is open closes it too (the right side goes back to "pick a chat").
 - Fix: right-click did nothing on messages saved before the player menu existed (no full name); bubbles highlight on mouse over. `/ph status` shows the last click on the phone (shown on the phone itself).
 - Players in the chat: right-click a message (or the name) from another player for a menu like the default chat's: Whisper, Invite to group, Invite to guild (if you can), Add friend, Who (/who), Copy name, Ignore, and the game's own menu. Left-click the name: private chat on the phone. Same actions on the name at the top of a private chat and on right-click of a private chat in the list.

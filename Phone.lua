@@ -99,6 +99,15 @@ local function ShowError(err)
 end
 ns.ShowError = ShowError
 
+-- Information on the phone (same box, not an error).
+local function Notice(title, text)
+    if errorBox then
+        errorBox.text:SetText("|cff25d366" .. title .. "|r\n\n" .. text .. "\n\n|cff888888(click to close)|r")
+        errorBox:Show()
+    end
+end
+ns.Notice = Notice
+
 local function Trace(e)
     return tostring(e) .. "\n" .. ((debugstack and debugstack(2, 8, 0)) or "")
 end
@@ -612,32 +621,94 @@ function ns:Whisper(full)
     ns:Compose()
 end
 
--- The game's own player menu (fallback / "more" entry).
-local function GameMenu(link, text, button)
-    if SetItemRef then SetItemRef(link, text or link, button or "RightButton", ChatFrame1) end
+-- The game's own player menu (report, etc.). Tries the menu API of this client,
+-- then the older ones; settings.lastMenu says which one ran.
+local function GameMenu(full, line, chatType)
+    local name, server = full:match("^([^%-]+)%-?(.*)$")
+    local used
+    if UnitPopup_OpenMenu then
+        local ok = pcall(UnitPopup_OpenMenu, "FRIEND", { name = name, server = server ~= "" and server or nil,
+            lineID = line, chatType = chatType or "WHISPER", chatFrame = ChatFrame1 })
+        if ok then used = "UnitPopup_OpenMenu" end
+    end
+    if not used and FriendsFrame_ShowDropdown then
+        if pcall(FriendsFrame_ShowDropdown, full, 1, line, chatType, ChatFrame1) then used = "FriendsFrame_ShowDropdown" end
+    end
+    if not used and SetItemRef then
+        if pcall(SetItemRef, "player:" .. full .. (line and (":" .. line) or ""), name, "RightButton", ChatFrame1) then used = "SetItemRef" end
+    end
+    settings.lastMenu = used or "none"
 end
 ns.GameMenu = GameMenu
 
--- Player actions, all with the game API (the click is the player's).
-local function Call(f, ...) if type(f) == "function" then return pcall(f, ...) end end
+-- Calls a game function; a failure is shown on the phone (never silent).
+local function Call(f, ...)
+    if type(f) ~= "function" then ShowError("function not available in this client") return end
+    local ok, err = pcall(f, ...)
+    if not ok then ShowError(err) end
+end
+
+-- /who on a player: the answer is shown on the phone (System may be off and
+-- the game's chat hidden). Results come by WHO_LIST_UPDATE (to the Who list)
+-- or as a system line; both are watched for a few seconds.
+local whoWait
+function ns:Who(full)
+    whoWait = { name = (full:gsub("%-.*$", "")):lower(), t = GetTime() }
+    local FL = C_FriendList
+    if FL and FL.SetWhoToUi then pcall(FL.SetWhoToUi, true) end
+    local q = 'n-"' .. full:gsub("%-.*$", "") .. '"'
+    if FL and FL.SendWho then
+        local origin = Enum and Enum.SocialWhoOrigin and Enum.SocialWhoOrigin.Chat
+        Call(FL.SendWho, q, origin)
+    else
+        Call(SendWho, q)
+    end
+end
+
+function ns:WhoResult()
+    if not whoWait or GetTime() - whoWait.t > 10 then return end
+    local FL = C_FriendList
+    if not (FL and FL.GetNumWhoResults and FL.GetWhoInfo) then return end
+    local n = FL.GetNumWhoResults() or 0
+    local lines = {}
+    for i = 1, n do
+        local w = FL.GetWhoInfo(i)
+        if type(w) == "table" and w.fullName then
+            lines[#lines + 1] = L.WHO_LINE:format(w.fullName, w.level or 0, w.raceStr or "", w.classStr or "",
+                w.area or "", (w.fullGuildName and w.fullGuildName ~= "") and ("<" .. w.fullGuildName .. ">") or "")
+        end
+    end
+    whoWait = nil
+    Notice(L.ACT_WHO, #lines > 0 and table.concat(lines, "\n") or L.WHO_NONE)
+end
+
+-- The system line of a /who sent to the chat ("Name: Level 20 ..."), if any.
+function ns:WhoSystem(text)
+    if not whoWait or GetTime() - whoWait.t > 10 or type(text) ~= "string" then return end
+    if text:lower():find(whoWait.name, 1, true) then
+        whoWait = nil
+        Notice(L.ACT_WHO, text)
+    end
+end
+
 ns.ACTIONS = {
     { "WHISPER", function(n) ns:Whisper(n) end },
     { "INVITE", function(n) Call((C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit, n) end },
     { "GUILD_INVITE", function(n) Call((C_GuildInfo and C_GuildInfo.Invite) or GuildInvite, n) end,
         function() return IsInGuild and IsInGuild() and (not CanGuildInvite or CanGuildInvite()) end },
-    { "ADD_FRIEND", function(n) Call(C_FriendList and C_FriendList.AddFriend or AddFriend, n) end },
-    { "WHO", function(n) Call(C_FriendList and C_FriendList.SendWho or SendWho, 'n-"' .. n .. '"') end },
+    { "ADD_FRIEND", function(n) Call((C_FriendList and C_FriendList.AddFriend) or AddFriend, n) end },
+    { "WHO", function(n) ns:Who(n) end },
     { "COPY_NAME", function(n) if MilkshaksonUI then MilkshaksonUI:CopyLink(n, n) end end },
-    { "IGNORE", function(n) Call(C_FriendList and C_FriendList.AddIgnore or AddIgnore, n) end },
+    { "IGNORE", function(n) Call((C_FriendList and C_FriendList.AddIgnore) or AddIgnore, n) end },
 }
 
 -- Right-click on a player (bubble, name or private chat): the actions of the
 -- game's chat menu, plus the game's own menu at the end.
-function ns:PlayerMenu(owner, full, line)
+function ns:PlayerMenu(owner, full, line, chatType)
     if not full or full == "" then return end
     local short = (Ambiguate and Ambiguate(full, "short")) or full:gsub("%-.*$", "")
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
-        GameMenu("player:" .. full .. (line and (":" .. line) or ""), short, "RightButton")
+        GameMenu(full, line, chatType)
         return
     end
     MenuUtil.CreateContextMenu(owner, function(_, root)
@@ -647,9 +718,7 @@ function ns:PlayerMenu(owner, full, line)
                 root:CreateButton(L["ACT_" .. a[1]], function() Safe(a[2], full) end)
             end
         end
-        root:CreateButton(L.ACT_MORE, function()
-            Safe(GameMenu, "player:" .. full .. (line and (":" .. line) or ""), short, "RightButton")
-        end)
+        root:CreateButton(L.ACT_MORE, function() Safe(GameMenu, full, line, chatType) end)
     end)
 end
 
@@ -669,7 +738,7 @@ function ns:OnLink(link, text, button)
             return
         end
     end
-    GameMenu(link, text, button)
+    if SetItemRef then SetItemRef(link, text, button, ChatFrame1) end
 end
 
 local function Bubble(i)
@@ -696,7 +765,7 @@ local function Bubble(i)
         local who = m and not m.out and not m.info and (m.full or m.from) -- older messages have no full name
         settings.lastClick = { button = tostring(button), who = who or "-", menu = (MenuUtil and MenuUtil.CreateContextMenu) and "yes" or "no" }
         if button == "RightButton" and who then
-            Safe(ns.PlayerMenu, ns, self, who, m.line)
+            Safe(ns.PlayerMenu, ns, self, who, m.line, m.ev)
         end
     end)
     -- hover: shows the message is clickable
@@ -1201,7 +1270,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
+    "C_BattleNet.GetAccountInfoByID", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
 }
 
 local function Lookup(path)
@@ -1236,6 +1305,8 @@ end
 ---------------------------------------------------------------------------
 local chat = CreateFrame("Frame")
 chat:SetScript("OnEvent", function(_, event, ...)
+    if event == "WHO_LIST_UPDATE" then Safe(ns.WhoResult, ns) return end
+    if event == "CHAT_MSG_SYSTEM" then Safe(ns.WhoSystem, ns, (...)) end
     local r, why = Route:Classify(event, ...)
     if not r then
         if why == "secret" then ns:Blocked(event) end
@@ -1265,6 +1336,7 @@ local function OnEvent(self, event, ...)
         }
         Store:OnChange(function() Later() end) -- many messages per second become one redraw
         for _, e in ipairs(Route.EVENTS) do pcall(chat.RegisterEvent, chat, e) end
+        pcall(chat.RegisterEvent, chat, "WHO_LIST_UPDATE")
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
             "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE" }) do
@@ -1336,7 +1408,8 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         local convs, msgs = Store:Counts()
         print(PREFIX .. L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF))
         local k = settings.lastClick
-        local line = k and ("last click: " .. k.button .. " on " .. k.who .. ", menu API: " .. k.menu) or "last click: none"
+        local line = (k and ("last click: " .. k.button .. " on " .. k.who .. ", menu API: " .. k.menu) or "last click: none")
+            .. "\ngame menu: " .. tostring(settings.lastMenu or "-")
         print(PREFIX .. line)
         if errorBox then errorBox.text:SetText(L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF) .. "\n" .. line .. "\n\n(click to close)"); errorBox:Show() end
     elseif msg == "probe" then
