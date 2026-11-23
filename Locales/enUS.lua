@@ -81,6 +81,8 @@ L.CFG_DESC       = "Your chat as a phone messenger: one chat per player, group, 
 L.CFG_CHAT_SECTION = "Chat"
 L.CFG_CHAT       = "Replace the game's chat with the phone"
 L.CFG_CHAT_TIP   = "Hides the game's chat windows (and chat addons drawn on them) and puts the typing box on the phone. Off: the phone is an extra window."
+L.CFG_FONT       = "Font size"
+L.CFG_FONT_TIP   = "Size of every text on the phone (1.00x = the game's size)."
 L.CFG_HOVER      = "Minimized: the mouse over a count pill opens that chat; leaving minimizes again"
 L.CFG_HOVER_TIP  = "Not while you are typing or a menu is open. A click on it while it is open this way restores it for good; - minimizes it again."
 L.CFG_ANIMATE    = "Smooth transition when minimizing / restoring"

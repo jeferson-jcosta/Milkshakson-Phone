@@ -127,12 +127,29 @@ local function Tex(parent, layer, c, a)
     return t
 end
 
+-- Every text of the phone, with its template size, so the font size option
+-- (settings.fontScale) can be applied to all of them at once.
+local fonts = {}
+local function FontScale() return tonumber(settings and settings.fontScale) or 1 end
+
+local function ScaleFont(f)
+    local path, size, flags = f:GetFont()
+    if type(size) ~= "number" or not path then return end
+    f.baseSize = rawget(f, "baseSize") or size
+    f:SetFont(path, f.baseSize * FontScale(), flags or "")
+end
+
 local function Font(parent, template, c, justify)
     local f = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
     if c then f:SetTextColor(c[1], c[2], c[3]) end
     f:SetJustifyH(justify or "LEFT")
+    fonts[#fonts + 1] = f
+    if FontScale() ~= 1 then ScaleFont(f) end
     return f
 end
+
+local function RowH() return math.floor(ROW_H * math.max(1, FontScale()) + 0.5) end
+ns.Fonts, ns.RowH = fonts, RowH
 
 local function ClassColor(cls)
     if not cls then return nil end
@@ -590,7 +607,7 @@ end
 local function Row(i)
     if rows[i] then return rows[i] end
     local r = CreateFrame("Button", nil, listContent)
-    r:SetHeight(ROW_H)
+    r:SetHeight(RowH())
     r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     r.sel = Tex(r, "BACKGROUND", COL.head)
     r.sel:SetAllPoints()
@@ -654,7 +671,8 @@ local function RenderList()
         local r = Row(i)
         r.conv = c
         r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, -(i - 1) * ROW_H)
+        r:SetHeight(RowH())
+        r:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, -(i - 1) * RowH())
         r:SetPoint("RIGHT", listContent, "RIGHT")
         SetIcon(r.icon, c)
         r.name:SetText(Title(c))
@@ -682,7 +700,7 @@ local function RenderList()
         r:Show()
     end
     for i = #list + 1, #rows do rows[i]:Hide() end
-    listContent:SetHeight(math.max(1, #list * ROW_H))
+    listContent:SetHeight(math.max(1, #list * RowH()))
     emptyText:SetShown(#list == 0)
     return #list
 end
@@ -1266,6 +1284,12 @@ end
 function ns:CloseKind(kind)
     local c = Store:Get(openKey)
     if c and c.kind == kind then ns:CloseChat() end
+end
+
+-- Font size changed: every text, then everything drawn again.
+function ns:ApplyFontScale()
+    for _, f in ipairs(fonts) do ScaleFont(f) end
+    ns:Redraw()
 end
 
 -- Draw everything again (colors changed).

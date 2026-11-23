@@ -16,7 +16,8 @@ S.DEFAULTS = {
     hoverExpand = true,
     animate = true,       -- smooth minimize / restore
     animTime = 0.25,      -- seconds   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
-    typeColors = true,    -- text colored by chat type (guild green, party blue...)
+    typeColors = true,
+    fontScale = 1,        -- font size of the phone (0.8 - 1.6)    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,
 }

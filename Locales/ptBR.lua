@@ -81,6 +81,8 @@ L.CFG_DESC       = "Seu chat como um mensageiro de celular: uma conversa por jog
 L.CFG_CHAT_SECTION = "Chat"
 L.CFG_CHAT       = "Substituir o chat do jogo pelo telefone"
 L.CFG_CHAT_TIP   = "Esconde as janelas de chat do jogo (e addons de chat desenhados nelas) e coloca a caixa de digitação no telefone. Desligado: o telefone é uma janela extra."
+L.CFG_FONT       = "Tamanho da fonte"
+L.CFG_FONT_TIP   = "Tamanho de todos os textos do telefone (1,00x = tamanho do jogo)."
 L.CFG_HOVER      = "Minimizado: o mouse sobre uma pílula de contagem abre aquela conversa; ao sair, minimiza de novo"
 L.CFG_HOVER_TIP  = "Não minimiza enquanto você digita ou com um menu aberto. Um clique nele aberto assim o deixa restaurado de vez; - minimiza de novo."
 L.CFG_ANIMATE    = "Transição suave ao minimizar / restaurar"
