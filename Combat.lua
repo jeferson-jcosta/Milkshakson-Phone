@@ -243,8 +243,11 @@ function C:StartLog()
     local cf = _G.ChatFrame2
     if hooked or not (cf and hooksecurefunc and cf.AddMessage) then return end
     hooked = true
+    C.seen, C.matched, C.hookOk = 0, 0, true
     hooksecurefunc(cf, "AddMessage", function(_, text)
-        if issecretvalue and issecretvalue(text) then C.status = "secret" return end
+        C.seen = (C.seen or 0) + 1
+        if issecretvalue and issecretvalue(text) then C.status = "secret"; C.lastRaw = "(secret)"; Changed() return end
+        C.lastRaw = tostring(text)
         local ok, h = pcall(C.ParseLine, C, text)
         local st = ns.settings
         if st then -- a few raw lines, to adjust the reader if needed (/ph combat sample)
@@ -255,9 +258,13 @@ function C:StartLog()
             end
         end
         if ok and h then
+            C.matched = (C.matched or 0) + 1
             if C.status ~= "log" then C.status = "log" end
             C:Record(h.id, h.name, h.amount, h.crit, h.target, h.pet)
+        elseif not ok then
+            C.lastErr = tostring(h)
         end
+        if (C.matched or 0) == 0 then Changed() end -- keep the diagnostic line fresh
     end)
 end
 
@@ -430,6 +437,12 @@ function C:Render()
     elseif self.status == "secret" then msg = L.CL_SECRET
     elseif #list == 0 and self.status == "log" then msg = L.CL_LOG
     elseif #list == 0 then msg = L.CL_WAIT end
+    if #list == 0 and self.status == "log" then
+        -- diagnostic while nothing is recognized: lines seen / recognized / the last one, raw
+        msg = msg .. "\n\n" .. L.CL_DIAG:format(self.seen or 0, self.matched or 0, tostring(self.hookOk))
+        if self.lastRaw then msg = msg .. "\n" .. self.lastRaw:gsub("|", "||"):sub(1, 400) end
+        if self.lastErr then msg = msg .. "\n" .. self.lastErr end
+    end
     v.note:SetText(#list == 0 and msg or "")
     v.sub:SetText(L.CL_SUB:format(#list) .. (self.status == "log" and ("  -  " .. L.CL_FROMLOG) or ""))
     return #list
