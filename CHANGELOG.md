@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Fix: nothing was drawn (list rows and messages) — on WoW: Forever a masked icon can't be cropped (SetTexCoord error). Icons are no longer masked.
 - Errors are shown on the phone (red box, click to close) instead of failing silently; last one saved in the settings.
 - Joined channels read with GetChannelName (works on every client version).
 - Always joins General, Trade and LocalDefense on login, /reload and zone change (only the ones you are not in; names in the client's language). Option to turn it off.
