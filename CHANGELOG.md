@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Chat names in the list and at the top of the open chat colored by type: Guild green, Party blue, Raid orange, Officers, channels in their own color (players keep their class color). Follows the "text colors by chat type" option.
 
 ## 0.2.0
 - Minimize / restore buttons are the game's - / + buttons (as in Ready Quests).

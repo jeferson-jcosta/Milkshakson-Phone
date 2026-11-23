@@ -48,6 +48,7 @@ local function TypeColor(m, c)
 end
 ns.TypeColor = TypeColor
 
+
 local KIND_ICON = {
     whisper = "Interface\\Icons\\INV_Misc_QuestionMark", bn = "Interface\\Icons\\INV_Misc_Note_06",
     guild = "Interface\\Icons\\INV_Shirt_GuildTabard_01", officer = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
@@ -139,6 +140,21 @@ local function ClassColor(cls)
         or (RAID_CLASS_COLORS and RAID_CLASS_COLORS[cls])
     if type(c) == "table" and c.r then return { c.r, c.g, c.b } end
 end
+
+-- Color of a chat's name (list and header): class color for a player, the
+-- chat type's color for groups and channels (guild green, party blue...).
+local KIND_EV = { guild = "GUILD", officer = "OFFICER", party = "PARTY", raid = "RAID",
+    instance = "INSTANCE_CHAT", bn = "BN_WHISPER" }
+local function NameColor(c)
+    if c.kind == "whisper" then
+        return ClassColor(c.cls) or (settings.typeColors and TypeColor({ ev = "WHISPER" }, c)) or COL.text
+    end
+    if not settings.typeColors then return COL.text end
+    if c.kind == "channel" then return TypeColor({ ev = "CHANNEL" }, c) or COL.text end
+    local ev = KIND_EV[c.kind]
+    return ev and TypeColor({ ev = ev }, c) or COL.text
+end
+ns.NameColor = NameColor
 
 local function Title(c)
     if c.kind == "whisper" or c.kind == "bn" or c.kind == "channel" then return c.name or "?" end
@@ -607,7 +623,7 @@ local function RenderList()
         r:SetPoint("RIGHT", listContent, "RIGHT")
         SetIcon(r.icon, c)
         r.name:SetText(Title(c))
-        local cc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.text
+        local cc = NameColor(c)
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
         local quiet = Quiet(c)
@@ -932,7 +948,7 @@ local function RenderChat(mode)
         return 0
     end
     chatTitle:SetText(Title(c))
-    local cc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.text
+    local cc = NameColor(c)
     chatTitle:SetTextColor(cc[1], cc[2], cc[3])
     chatSub:SetText(Sub(c))
     SetIcon(chatIcon, c)
