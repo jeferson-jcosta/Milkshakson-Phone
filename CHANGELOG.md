@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Deleting the chat that is open closes it too (the right side goes back to "pick a chat").
 - Fix: right-click did nothing on messages saved before the player menu existed (no full name); bubbles highlight on mouse over. `/ph status` shows the last click on the phone (shown on the phone itself).
 - Players in the chat: right-click a message (or the name) from another player for a menu like the default chat's: Whisper, Invite to group, Invite to guild (if you can), Add friend, Who (/who), Copy name, Ignore, and the game's own menu. Left-click the name: private chat on the phone. Same actions on the name at the top of a private chat and on right-click of a private chat in the list.
 - Channels other addons use only to send data (HarvestMate) are hidden. Right-click a channel: Hide this channel (`/ph show channels` brings them back).

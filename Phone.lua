@@ -484,12 +484,12 @@ local function RowMenu(owner, c)
                 root:CreateButton(L.HIDE_CHANNEL, function()
                     settings.hiddenChannels = settings.hiddenChannels or {}
                     settings.hiddenChannels[(c.name or ""):lower()] = true
-                    if openKey == c.key then openKey = nil; ns:Layout() end
+                    if openKey == c.key then ns:CloseChat() end
                     ns:Refresh()
                 end)
             end
             root:CreateButton(L.CLEAR_CONV, function() Store:ClearConv(c.key) end)
-            root:CreateButton(L.DELETE_CONV, function() Store:Delete(c.key) end)
+            root:CreateButton(L.DELETE_CONV, function() Safe(ns.DeleteConv, ns, c.key) end)
         end)
     else
         Store:SetMuted(c.key, not c.muted)
@@ -913,7 +913,7 @@ local function DoRefresh(_, key)
     if not phone:IsShown() or settings.min then return end -- drawn when shown again
     RenderList()
     if openKey and (key == nil or key == openKey) then
-        if not Store:Get(openKey) then openKey = nil; ns:Layout() else RenderChat() end
+        if not Store:Get(openKey) then ns:CloseChat() else RenderChat() end
     end
 end
 
@@ -942,10 +942,25 @@ function ns:Refresh(key) return Safe(DoRefresh, ns, key) end
 ns.Later = Later
 function ns:Open(key) return Safe(DoOpen, ns, key) end
 
+-- Close the open chat (right pane back to "pick a chat").
+function ns:CloseChat()
+    openKey = nil
+    if settings.lastOpen then settings.lastOpen = nil end
+    ns:Layout()
+    RenderChat()
+end
+
+-- Delete a chat; if it is the open one, close it too.
+function ns:DeleteConv(key)
+    if openKey == key then ns:CloseChat() end
+    Store:Delete(key)
+    ns:Refresh()
+end
+
 -- A kind was switched off: leave its conversation if it is open.
 function ns:CloseKind(kind)
     local c = Store:Get(openKey)
-    if c and c.kind == kind then openKey = nil; ns:Layout() end
+    if c and c.kind == kind then ns:CloseChat() end
 end
 
 -- Draw everything again (colors changed).
