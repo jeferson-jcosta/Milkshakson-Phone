@@ -383,6 +383,13 @@ ns.TopKeys = TopKeys
 
 local function ChanKey(name) return "c:" .. name:lower() end
 
+-- Channels used by other addons only to send data (no chat): hidden.
+local ADDON_CHANNELS = { harvestmate = true, harvestmateb = true, harvestmatec = true }
+function ns:ChannelHidden(name)
+    local n = (name or ""):lower()
+    return ADDON_CHANNELS[n] or (settings.hiddenChannels and settings.hiddenChannels[n]) or false
+end
+
 -- Channels the character is in (GetChannelList: id, name, disabled, ...),
 -- then channel conversations with messages that are not joined now.
 local function Channels()
@@ -390,6 +397,7 @@ local function Channels()
     local function add(id, name)
         if type(name) ~= "string" or name == "" or (tonumber(id) or 0) <= 0 then return end
         name = name:match("^(.-) %- ") or name
+        if ns:ChannelHidden(name) then return end
         local c = Store:Ensure(ChanKey(name), "channel", name)
         c.chan = tonumber(id)
         if not seen[c.key] then seen[c.key] = true; t[#t + 1] = { conv = c, joined = true } end
@@ -407,7 +415,7 @@ local function Channels()
     end
     local rest = {}
     for _, c in pairs(Store:Char().convs) do
-        if c.kind == "channel" and not seen[c.key] and #c.msgs > 0 then rest[#rest + 1] = { conv = c } end
+        if c.kind == "channel" and not seen[c.key] and #c.msgs > 0 and not ns:ChannelHidden(c.name) then rest[#rest + 1] = { conv = c } end
     end
     table.sort(rest, function(a, b) return a.conv.key < b.conv.key end)
     for _, x in ipairs(rest) do t[#t + 1] = x end
@@ -434,6 +442,9 @@ end
 
 function ns:AutoJoin()
     if not settings.autoJoin or not JoinChannelByName then return end
+    -- never touch channels in combat (the game may block the addon); retry after
+    if InCombatLockdown and InCombatLockdown() then ns.joinAfterCombat = true return end
+    ns.joinAfterCombat = nil
     local names = {}
     if EnumerateServerChannels then
         for _, n in ipairs({ EnumerateServerChannels() }) do
@@ -461,6 +472,14 @@ local function RowMenu(owner, c)
             root:CreateTitle(Title(c))
             root:CreateButton(c.pinned and L.UNPIN or L.PIN, function() Store:SetPinned(c.key, not c.pinned) end)
             root:CreateButton(c.muted and L.UNMUTE or L.MUTE, function() Store:SetMuted(c.key, not c.muted) end)
+            if c.kind == "channel" then
+                root:CreateButton(L.HIDE_CHANNEL, function()
+                    settings.hiddenChannels = settings.hiddenChannels or {}
+                    settings.hiddenChannels[(c.name or ""):lower()] = true
+                    if openKey == c.key then openKey = nil; ns:Layout() end
+                    ns:Refresh()
+                end)
+            end
             root:CreateButton(L.CLEAR_CONV, function() Store:ClearConv(c.key) end)
             root:CreateButton(L.DELETE_CONV, function() Store:Delete(c.key) end)
         end)
@@ -525,7 +544,10 @@ end
 
 local function RenderList()
     FitWidth(listScroll, listContent, LIST_W)
-    local list = Store:List(TopKeys(), HiddenKinds())
+    local list = {}
+    for _, c in ipairs(Store:List(TopKeys(), HiddenKinds())) do
+        if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then list[#list + 1] = c end
+    end
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -1134,6 +1156,7 @@ local function OnEvent(self, event, ...)
         end
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
         ns:Unblock()
+        if event == "PLAYER_REGEN_ENABLED" and ns.joinAfterCombat then ns:AutoJoin(); Later() end
         UpdateStatus()
         if event == "ZONE_CHANGED_NEW_AREA" then
             if C_Timer and C_Timer.After then C_Timer.After(3, function() ns:AutoJoin(); Later() end) else ns:AutoJoin() end
@@ -1168,6 +1191,10 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         print(PREFIX .. L.RESET)
     elseif msg == "clear" then
         if StaticPopup_Show then StaticPopup_Show("MILKSHAKSON_PHONE_CLEAR", L.POPUP_CLEAR) end
+    elseif msg == "show channels" then
+        settings.hiddenChannels = nil
+        ns:Refresh()
+        print(PREFIX .. L.CHANNELS_SHOWN)
     elseif msg == "status" then
         local convs, msgs = Store:Counts()
         print(PREFIX .. L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF))

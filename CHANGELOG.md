@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Channels other addons use only to send data (HarvestMate) are hidden. Right-click a channel: Hide this channel (`/ph show channels` brings them back).
+- Auto-join never touches channels in combat (the game may block the addon); it waits for the end of the fight.
 - Icons: Trade channels a coin, LocalDefense a sword, General a map, Nearby a group of people (NPCs got their own icon).
 - Filters (options): show system messages (off by default), show the NPCs chat (off by default). When off they are not kept at all.
 - Text colors by chat type (on by default): guild green, party blue, raid orange, whispers pink... taken from the game's own chat colors.
