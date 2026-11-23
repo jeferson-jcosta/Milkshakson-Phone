@@ -1082,7 +1082,8 @@ end
 local function DoOpen(_, key)
     openKey = key
     settings.lastOpen = key
-    if not ns.peek then settings.min = false end -- opened by the mouse: stays a peek
+    settings.min = false
+    ns.peek = false -- a click on a chat restores the phone for good
     Store:Read(key)
     local c = Store:Get(key)
     if c then ns:SetSticky(c) end
@@ -1145,6 +1146,7 @@ function ns:Minimize(v)
     end
     if v == nil then v = not settings.min end
     settings.min = v and true or false
+    if v then ns.holdPeek = true end -- minimized by hand: no hover-open until the mouse leaves
     ns:Layout()
     UpdatePills()
     if not v then ns:Refresh() end
@@ -1170,6 +1172,14 @@ function ns:HoverTick(dt)
     local over
     if phone.IsMouseOver then over = phone:IsMouseOver() elseif MouseIsOver then over = MouseIsOver(phone) end
     if not over then ns.holdPeek = nil end
+    if over and ns.peek and IsMouseButtonDown and (IsMouseButtonDown("LeftButton") or IsMouseButtonDown("RightButton")) then
+        -- a click while it is open by the mouse: restored for good
+        ns.peek = false
+        settings.min = false
+        ns:Layout()
+        ns:Refresh()
+        return
+    end
     if over then
         outFor = 0
         if not ns.peek and not ns.holdPeek then ns.peek = true; ns:Layout(); ns:Refresh() end
