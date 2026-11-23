@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Minimized: colored count pills for Guild (green), Party / Raid (blue / orange) and Whispers (pink), in the game's chat colors, only when there is something unread. Click one to open that chat (whispers: the latest).
 
 ## 0.1.0
 First version: the chat as a phone messenger.

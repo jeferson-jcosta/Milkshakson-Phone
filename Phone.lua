@@ -73,7 +73,7 @@ end
 local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", guild = "GUILD", officer = "OFFICER", ["local"] = "SAY" }
 
 local phone, clockText, zoneText, banner, grip
-local listView, listTitle, listScroll, listContent, emptyText
+local listView, listTitle, listScroll, listContent, emptyText, listHead
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
@@ -980,9 +980,85 @@ function ns:Layout()
     end
 end
 
+-- Minimized: colored count pills for guild, party / raid and whispers.
+local pills = {}
+
+-- The game's own color for a chat type (whatever the text color option says).
+local function GameColor(ev)
+    local info = ChatTypeInfo and ChatTypeInfo[ev]
+    if info and info.r then return { info.r, info.g, info.b } end
+    return TYPE_COL[ev] or COL.accent
+end
+
+-- { id, label, color, count, key = chat to open } for what has unread messages.
+function ns:MiniCounts()
+    local convs = Store:Char().convs
+    local out = {}
+    local g = convs.guild
+    if g and not g.muted and (g.unread or 0) > 0 then
+        out[#out + 1] = { id = "guild", label = L.K_guild, ev = "GUILD", n = g.unread, key = "guild" }
+    end
+    local best, n, ev, label = nil, 0, "PARTY", L.K_party
+    for _, k in ipairs({ "party", "raid", "instance" }) do
+        local c = convs[k]
+        if c and not c.muted and (c.unread or 0) > 0 then
+            n = n + c.unread
+            if not best or (c.last or 0) > (convs[best].last or 0) then best = k end
+        end
+    end
+    if best == "raid" then ev, label = "RAID", L.K_raid elseif best == "instance" then ev, label = "INSTANCE_CHAT", L.K_instance end
+    if n > 0 then out[#out + 1] = { id = "party", label = label, ev = ev, n = n, key = best } end
+    local wn, wkey, wlast = 0, nil, -1
+    for key, c in pairs(convs) do
+        if (c.kind == "whisper" or c.kind == "bn") and not c.muted and (c.unread or 0) > 0 then
+            wn = wn + c.unread
+            if (c.last or 0) > wlast then wkey, wlast = key, c.last or 0 end
+        end
+    end
+    if wn > 0 then out[#out + 1] = { id = "whisper", label = L.WHISPERS, ev = "WHISPER", n = wn, key = wkey } end
+    return out
+end
+
+local function Pill(i)
+    if pills[i] then return pills[i] end
+    local b = CreateFrame("Button", nil, listHead)
+    b:SetHeight(22)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.text = Font(b, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
+    b.text:SetPoint("CENTER")
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.15)
+    b:SetScript("OnClick", function(self) if self.key then ns:Open(self.key) end end)
+    pills[i] = b
+    return b
+end
+
+local function UpdatePills()
+    local list = settings.min and ns:MiniCounts() or {}
+    local prev
+    for i, x in ipairs(list) do
+        local b = Pill(i)
+        local c = GameColor(x.ev)
+        b.bg:SetColorTexture(c[1], c[2], c[3], 1)
+        b.text:SetText(x.label .. "  " .. (x.n > 99 and "99+" or x.n))
+        b:SetWidth(Num(b.text:GetUnboundedStringWidth(), 60) + 16)
+        b.key = x.key
+        b:ClearAllPoints()
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("LEFT", listTitle, "RIGHT", 12, 0) end
+        b:Show()
+        prev = b
+    end
+    for i = #list + 1, #pills do pills[i]:Hide() end
+    return #list
+end
+ns.UpdatePills = UpdatePills
+
 local function UpdateTitle()
     local n = Store:Unread({ npc = true, system = not settings.monitorSystem or nil })
     listTitle:SetText(n > 0 and L.CHATS_N:format(n) or L.CHATS)
+    UpdatePills()
 end
 
 local pending
@@ -1062,6 +1138,7 @@ function ns:Minimize(v)
     if v == nil then v = not settings.min end
     settings.min = v and true or false
     ns:Layout()
+    UpdatePills()
     if not v then ns:Refresh() end
 end
 
@@ -1157,6 +1234,7 @@ local function Build()
     listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
     local lh = Header(listView)
+    listHead = lh
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
     listTitle:SetPoint("LEFT", 12, 0)
     local minB = TextButton(lh, "_", function() ns:Minimize() end, L.TIP_MIN)
