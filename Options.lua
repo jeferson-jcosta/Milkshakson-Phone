@@ -17,7 +17,6 @@ function ns:BuildOptions(db)
     })
 
     UI:Section(p, L.CFG_CONVS)
-    UI:Check(p, L.CFG_RAIL, L.CFG_RAIL_TIP, function() return db.rail end, function(v) db.rail = v; ns:Layout(); R() end)
     UI:Check(p, L.CFG_MUTE_CH, nil, function() return db.muteChannels end, function(v) db.muteChannels = v end)
     UI:Check(p, L.CFG_MUTE_SYS, nil, function() return db.muteSystem end, function(v) db.muteSystem = v end)
     UI:Slider(p, L.CFG_MAX, 50, 1000, 50, "%d", function() return db.maxMsgs end,

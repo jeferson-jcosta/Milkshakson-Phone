@@ -10,8 +10,7 @@ S.DEFAULTS = {
     muteChannels = true,  -- new public channels (Trade, General...) start muted
     muteSystem = true,    -- System / NPC conversations start muted
     maxMsgs = 200,        -- messages kept per conversation
-    rail = true,          -- channels in a side bar on the left
-    w = 400, h = 460,
+    w = 560, h = 480,
 }
 
 local listeners = {}
@@ -19,7 +18,7 @@ local listeners = {}
 function S:Init()
     MilkshaksonPhoneDB = type(MilkshaksonPhoneDB) == "table" and MilkshaksonPhoneDB or {}
     local db = MilkshaksonPhoneDB
-    if db.w == 330 then db.w = 400 end -- 0.1.0 default, too narrow with the side bar
+    if (tonumber(db.w) or 0) < 500 then db.w = 560 end -- two panes need the room
     for k, v in pairs(S.DEFAULTS) do if db[k] == nil then db[k] = v end end
     MilkshaksonPhoneCharDB = type(MilkshaksonPhoneCharDB) == "table" and MilkshaksonPhoneCharDB or {}
     local c = MilkshaksonPhoneCharDB

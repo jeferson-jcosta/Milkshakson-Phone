@@ -1,9 +1,10 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Channels you are in (General, Trade, LocalDefense, LFG...) in a side bar on the left, with the channel number and the count of new messages (grey when muted). Option to list them with the other chats instead.
-- Party (or raid) and guild always at the top of the chats list while you are in one, even with no messages yet.
-- Wider default size (400).
+- Two panes, like a desktop messenger: chats on the left, the open chat on the right (no more back button). Opens the last chat on login.
+- Always at the top of the left pane: party (or raid) and guild while you are in one, then the channels you are in (General, Trade, LocalDefense, LFG...), even with no messages yet. Muted chats show a grey count of new messages.
+- Fix: messages and list rows could be invisible (the scrolling area started 10 px wide).
+- Default size 560 x 480.
 
 ## 0.1.0
 - First version (pilot): the chat as a phone messenger. One conversation per player (whispers, Battle.net), party, raid, instance, guild, officers, nearby (say / yell / emotes), each public channel, System and NPCs.

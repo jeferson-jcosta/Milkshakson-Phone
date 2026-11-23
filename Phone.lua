@@ -8,7 +8,7 @@ local Store, Route = ns.Store, ns.Route
 local PREFIX = "|cff25d366[Phone]|r "
 local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
-local STATUS_H, HEAD_H, INPUT_H, ROW_H, RAIL_W, RAIL_ROW = 18, 42, 30, 52, 86, 34
+local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local SHOW_MSGS = 120
 
 -- Dark messenger palette.
@@ -33,8 +33,6 @@ local phone, clockText, zoneText, banner, grip
 local listView, listTitle, listScroll, listContent, emptyText
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
 local inputBar, inputText
-local rail, railScroll, railContent
-local railRows = {}
 local rows, bubbles, seps = {}, {}, {}
 local openKey
 
@@ -158,7 +156,7 @@ local function Scroller(parent)
         local max = Num(self:GetVerticalScrollRange(), 0)
         self:SetVerticalScroll(math.max(0, math.min(max, self:GetVerticalScroll() - d * 48)))
     end)
-    s:SetScript("OnSizeChanged", function(_, w) c:SetWidth(w) end)
+    s:SetScript("OnSizeChanged", function(_, w) if Num(w, 0) > 1 then c:SetWidth(w) end end)
     return s, c
 end
 
@@ -293,6 +291,9 @@ local function TopKeys()
     elseif IsInGroup and IsInGroup() then t[#t + 1] = "party" end
     if IsInGuild and IsInGuild() then t[#t + 1] = "guild" end
     for _, k in ipairs(t) do Store:Ensure(k, k) end
+    for _, x in ipairs(ns.Channels()) do
+        if x.joined then t[#t + 1] = x.conv.key end
+    end
     return t
 end
 ns.TopKeys = TopKeys
@@ -347,36 +348,38 @@ local function Row(i)
     local r = CreateFrame("Button", nil, listContent)
     r:SetHeight(ROW_H)
     r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    r.sel = Tex(r, "BACKGROUND", COL.head)
+    r.sel:SetAllPoints()
+    r.sel:Hide()
     local hl = r:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.05)
     r.icon = r:CreateTexture(nil, "ARTWORK")
-    r.icon:SetSize(38, 38)
+    r.icon:SetSize(32, 32)
     r.icon:SetPoint("LEFT", 8, 0)
     Round(r.icon)
     r.time = Font(r, "GameFontHighlightSmall", COL.sub, "RIGHT")
-    r.time:SetPoint("TOPRIGHT", -10, -10)
+    r.time:SetPoint("TOPRIGHT", -8, -8)
     r.name = Font(r, "GameFontHighlight", COL.text)
-    r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 10, -2)
-    r.name:SetPoint("RIGHT", r, "RIGHT", -62, 0)
+    r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, -1)
+    r.name:SetPoint("RIGHT", r.time, "LEFT", -4, 0)
     r.name:SetWordWrap(false)
     r.prev = Font(r, "GameFontHighlightSmall", COL.sub)
-    r.prev:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, 3)
-    r.prev:SetPoint("RIGHT", r, "RIGHT", -40, 0)
+    r.prev:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 2)
+    r.prev:SetPoint("RIGHT", r, "RIGHT", -30, 0)
     r.prev:SetWordWrap(false)
     r.badge = CreateFrame("Frame", nil, r)
-    r.badge:SetSize(20, 20)
-    r.badge:SetPoint("BOTTOMRIGHT", -10, 8)
+    r.badge:SetSize(18, 18)
+    r.badge:SetPoint("BOTTOMRIGHT", -8, 6)
     local bg = Tex(r.badge, "ARTWORK", COL.accent)
     bg:SetAllPoints()
     Round(bg)
+    r.badge.bg = bg
     r.badge.n = Font(r.badge, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
     r.badge.n:SetPoint("CENTER")
-    r.muted = Font(r, "GameFontDisableSmall", COL.sub, "RIGHT")
-    r.muted:SetPoint("BOTTOMRIGHT", -10, 11)
     local line = Tex(r, "BORDER", COL.sep)
     line:SetHeight(1)
-    line:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 10, -7)
+    line:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, -6)
     line:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 0)
     r:SetScript("OnClick", function(self, btn)
         if btn == "RightButton" then RowMenu(self, self.conv) else ns:Open(self.conv.key) end
@@ -385,8 +388,18 @@ local function Row(i)
     return r
 end
 
+-- The scroll child does not follow the scroll frame's width by itself, and the
+-- frame can still be 0 wide before the first layout: fall back to the phone size.
+local function FitWidth(scroll, content, fallback)
+    local w = Num(scroll:GetWidth(), 0)
+    if w <= 1 then w = fallback end
+    content:SetWidth(w)
+    return w
+end
+
 local function RenderList()
-    local list = Store:List(TopKeys(), settings.rail)
+    FitWidth(listScroll, listContent, LIST_W)
+    local list = Store:List(TopKeys())
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -400,16 +413,18 @@ local function RenderList()
         local m = c.msgs[#c.msgs]
         r.time:SetText(m and ListTime(m.t) or "")
         r.prev:SetText(m and Preview(c, m) or L.NO_MSGS)
-        local n = c.unread or 0
-        if n > 0 and not c.muted then
+        local n = c.muted and (c.unseen or 0) or (c.unread or 0)
+        r.sel:SetShown(openKey == c.key)
+        if n > 0 then
             r.badge.n:SetText(n > 99 and "99+" or tostring(n))
+            local bc = c.muted and COL.sub or COL.accent
+            r.badge.bg:SetColorTexture(bc[1], bc[2], bc[3], 1)
             r.badge:Show()
-            r.time:SetTextColor(COL.accent[1], COL.accent[2], COL.accent[3])
+            r.time:SetTextColor(bc[1], bc[2], bc[3])
         else
             r.badge:Hide()
             r.time:SetTextColor(COL.sub[1], COL.sub[2], COL.sub[3])
         end
-        r.muted:SetText(c.muted and L.MUTED or "")
         r:Show()
     end
     for i = #list + 1, #rows do rows[i]:Hide() end
@@ -417,60 +432,6 @@ local function RenderList()
     emptyText:SetShown(#list == 0)
     return #list
 end
-
----------------------------------------------------------------------------
--- Side bar: channels
----------------------------------------------------------------------------
-local function RailRow(i)
-    if railRows[i] then return railRows[i] end
-    local r = CreateFrame("Button", nil, railContent)
-    r:SetHeight(RAIL_ROW)
-    r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    r.sel = Tex(r, "BACKGROUND", COL.head)
-    r.sel:SetAllPoints()
-    local hl = r:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.06)
-    r.name = Font(r, "GameFontHighlightSmall", COL.text)
-    r.name:SetPoint("TOPLEFT", 8, -5)
-    r.name:SetPoint("RIGHT", r, "RIGHT", -4, 0)
-    r.name:SetWordWrap(false)
-    r.num = Font(r, "GameFontDisableSmall", COL.sub)
-    r.num:SetPoint("BOTTOMLEFT", 8, 4)
-    r.badge = Font(r, "GameFontHighlightSmall", COL.accent, "RIGHT")
-    r.badge:SetPoint("BOTTOMRIGHT", -6, 4)
-    r:SetScript("OnClick", function(self, btn)
-        if btn == "RightButton" then RowMenu(self, self.conv) else ns:Open(self.conv.key) end
-    end)
-    railRows[i] = r
-    return r
-end
-
-local function RenderRail()
-    if not (settings.rail and rail:IsShown()) then return 0 end
-    local list = Channels()
-    for i, x in ipairs(list) do
-        local r, c = RailRow(i), x.conv
-        r.conv = c
-        r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", railContent, "TOPLEFT", 0, -(i - 1) * (RAIL_ROW + 2))
-        r:SetPoint("RIGHT", railContent, "RIGHT")
-        r.sel:SetShown(openKey == c.key)
-        r.name:SetText(c.name or "?")
-        local t = x.joined and COL.text or COL.sub
-        r.name:SetTextColor(t[1], t[2], t[3])
-        r.num:SetText(c.chan and x.joined and ("/" .. c.chan) or "")
-        local n = c.muted and (c.unseen or 0) or (c.unread or 0)
-        local bc = c.muted and COL.sub or COL.accent
-        r.badge:SetTextColor(bc[1], bc[2], bc[3])
-        r.badge:SetText(n > 0 and (n > 99 and "99+" or tostring(n)) or "")
-        r:Show()
-    end
-    for i = #list + 1, #railRows do railRows[i]:Hide() end
-    railContent:SetHeight(math.max(1, #list * (RAIL_ROW + 2)))
-    return #list
-end
-ns.RenderRail = RenderRail
 
 ---------------------------------------------------------------------------
 -- Conversation view
@@ -525,7 +486,13 @@ local function RenderChat(forceBottom)
     for _, b in ipairs(bubbles) do b:Hide() end
     for _, s in ipairs(seps) do s:Hide() end
     local c = Store:Get(openKey)
-    if not c then return 0 end
+    if not c then
+        chatTitle:SetText(L.PICK)
+        chatTitle:SetTextColor(COL.sub[1], COL.sub[2], COL.sub[3])
+        chatSub:SetText("")
+        chatIcon:SetTexture(KIND_ICON.channel)
+        return 0
+    end
     local stick = forceBottom or AtBottom()
     chatTitle:SetText(Title(c))
     local cc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.text
@@ -533,8 +500,7 @@ local function RenderChat(forceBottom)
     chatSub:SetText(Sub(c))
     SetIcon(chatIcon, c)
 
-    local width = Num(chatScroll:GetWidth(), 0)
-    if width < 100 then width = Num(phone:GetWidth(), 300) end
+    local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - LIST_W)
     local maxW = math.floor(width * 0.8) - 16
     local group = IsGroup(c.kind)
     local y, nb, nsep, lastDay = 8, 0, 0, nil
@@ -617,17 +583,18 @@ function ns:Layout()
     if not phone then return end
     local min = settings.min
     local inChat = openKey ~= nil and not min
-    local showRail = settings.rail and not min
-    rail:SetShown(showRail)
-    local left = showRail and RAIL_W or 0
-    for _, v in ipairs({ listView, chatView }) do
-        v:ClearAllPoints()
-        v:SetPoint("TOPLEFT", phone, "TOPLEFT", left, -STATUS_H)
-        v:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
+    -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
+    listView:ClearAllPoints()
+    listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H)
+    if min then
+        listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
+    else
+        listView:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
+        listView:SetWidth(LIST_W)
     end
-    listView:SetShown(not inChat)
+    listView:Show()
     listScroll:SetShown(not min)
-    chatView:SetShown(inChat)
+    chatView:SetShown(not min)
     inputBar:SetShown(not min)
     grip:SetShown(not min and not settings.locked)
     phone:SetHeight(min and (STATUS_H + HEAD_H) or settings.h)
@@ -651,7 +618,6 @@ function ns:Refresh(key)
     if not phone then return end
     UpdateTitle()
     RenderList()
-    RenderRail()
     if openKey and (key == nil or key == openKey) then
         if not Store:Get(openKey) then openKey = nil; ns:Layout() else RenderChat() end
     end
@@ -666,6 +632,7 @@ end
 
 function ns:Open(key)
     openKey = key
+    settings.lastOpen = key
     settings.min = false
     Store:Read(key)
     local c = Store:Get(key)
@@ -674,7 +641,6 @@ function ns:Open(key)
     RenderChat(true)
     UpdateTitle()
     RenderList()
-    RenderRail()
 end
 
 function ns:Back()
@@ -769,30 +735,6 @@ local function Build()
     zoneText:SetPoint("LEFT", clockText, "RIGHT", 10, 0)
     zoneText:SetWordWrap(false)
 
-    -- Left: channels.
-    rail = CreateFrame("Frame", nil, phone)
-    rail:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
-    rail:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
-    rail:SetWidth(RAIL_W)
-    Tex(rail, "BACKGROUND", COL.status, 0.9):SetAllPoints()
-    local rh = CreateFrame("Frame", nil, rail)
-    rh:SetPoint("TOPLEFT")
-    rh:SetPoint("TOPRIGHT")
-    rh:SetHeight(HEAD_H)
-    Tex(rh, "BACKGROUND", COL.head):SetAllPoints()
-    Drag(rh)
-    local rt = Font(rh, "GameFontNormal", COL.sub)
-    rt:SetPoint("LEFT", 8, 0)
-    rt:SetText(L.CHANNELS)
-    rail.title = rt
-    local line = Tex(rail, "BORDER", COL.sep)
-    line:SetWidth(1)
-    line:SetPoint("TOPRIGHT")
-    line:SetPoint("BOTTOMRIGHT")
-    railScroll, railContent = Scroller(rail)
-    railScroll:SetPoint("TOPLEFT", rh, "BOTTOMLEFT", 0, -2)
-    railScroll:SetPoint("BOTTOMRIGHT", -1, 0)
-
     -- Bottom: the bar the game's edit box sits on.
     inputBar = CreateFrame("Button", nil, phone)
     inputBar:SetPoint("BOTTOMLEFT", 6, 6)
@@ -814,8 +756,6 @@ local function Build()
     listTitle:SetPoint("LEFT", 12, 0)
     local minB = TextButton(lh, "_", function() ns:Minimize() end, L.TIP_MIN)
     minB:SetPoint("RIGHT", -6, 0)
-    local cfgB = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
-    cfgB:SetPoint("RIGHT", minB, "LEFT", -2, 0)
     listScroll, listContent = Scroller(listView)
     listScroll:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 0, -2)
     listScroll:SetPoint("BOTTOMRIGHT")
@@ -826,29 +766,32 @@ local function Build()
 
     -- Conversation
     chatView = CreateFrame("Frame", nil, phone)
-    chatView:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
+    chatView:SetPoint("TOPLEFT", listView, "TOPRIGHT")
     chatView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
+    local divider = Tex(chatView, "BORDER", COL.sep)
+    divider:SetWidth(1)
+    divider:SetPoint("TOPLEFT")
+    divider:SetPoint("BOTTOMLEFT")
     local ch = Header(chatView)
-    local back = TextButton(ch, "<", function() ns:Back() end, L.TIP_BACK)
-    back:SetPoint("LEFT", 4, 0)
     chatIcon = ch:CreateTexture(nil, "ARTWORK")
     chatIcon:SetSize(30, 30)
-    chatIcon:SetPoint("LEFT", back, "RIGHT", 2, 0)
+    chatIcon:SetPoint("LEFT", 10, 0)
     Round(chatIcon)
     local minC = TextButton(ch, "_", function() ns:Minimize() end, L.TIP_MIN)
     minC:SetPoint("RIGHT", -6, 0)
+    local cfgC = TextButton(ch, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
+    cfgC:SetPoint("RIGHT", minC, "LEFT", -2, 0)
     chatTitle = Font(ch, "GameFontHighlight", COL.text)
     chatTitle:SetPoint("TOPLEFT", chatIcon, "TOPRIGHT", 8, -1)
-    chatTitle:SetPoint("RIGHT", minC, "LEFT", -4, 0)
+    chatTitle:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
     chatTitle:SetWordWrap(false)
     chatSub = Font(ch, "GameFontHighlightSmall", COL.sub)
     chatSub:SetPoint("BOTTOMLEFT", chatIcon, "BOTTOMRIGHT", 8, 1)
-    chatSub:SetPoint("RIGHT", minC, "LEFT", -4, 0)
+    chatSub:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
     chatSub:SetWordWrap(false)
     chatScroll, chatContent = Scroller(chatView)
     chatScroll:SetPoint("TOPLEFT", ch, "BOTTOMLEFT", 0, -2)
     chatScroll:SetPoint("BOTTOMRIGHT")
-    chatView:Hide()
 
     -- Shown while the game hides messages from addons.
     banner = CreateFrame("Frame", nil, phone)
@@ -969,8 +912,11 @@ ev:SetScript("OnEvent", function(self, event, ...)
         end
         ns:BuildOptions(settings)
         if settings.replaceChat or settings.shown ~= false then phone:Show() else phone:Hide() end
+        local first = settings.lastOpen or "guild"
+        if Store:Get(first) or first == "guild" and IsInGuild and IsInGuild() then openKey = first end
         ns:Layout()
         ns:Refresh()
+        if openKey then ns:Open(openKey) end
         UpdateStatus()
         if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(10, UpdateStatus) end
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -978,6 +924,7 @@ ev:SetScript("OnEvent", function(self, event, ...)
         banner:Hide()
         if settings.replaceChat then ApplyReplace(true) end
         UpdateStatus()
+        Later()
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
         ns:Unblock()
         UpdateStatus()
@@ -1043,7 +990,6 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
             end
         end
         emptyText:SetText(L.EMPTY)
-        rail.title:SetText(L.CHANNELS)
         ns:Layout()
         ns:Refresh()
     else

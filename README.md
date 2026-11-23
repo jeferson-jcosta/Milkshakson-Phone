@@ -2,8 +2,8 @@
 
 Your chat as a **phone messenger**. Instead of one stream mixing whispers, guild, party, trade and loot, every player, group and channel gets its **own conversation**:
 
-- **Channels on the left**: the channels you are in (General, Trade, LocalDefense, LFG...) in a side bar with their number and new messages.
-- **Party / raid and guild on top** of the list while you are in one.
+- **Two panes**: chats on the left, the open chat on the right.
+- **Always on top**: party / raid and guild while you are in one, then the channels you are in (General, Trade, LocalDefense, LFG...).
 - **Chats list**: one line per conversation with the last message, the time and an unread badge. Newest first; pin the ones you care about to the top.
 - **Conversation**: bubbles (yours on the right, theirs on the left), sender name in group chats (class color), time on each message, day separators (Today, Yesterday, date). Item / quest links stay clickable.
 - **Replaces the game's chat** (on by default): the game's chat windows are hidden and the typing box sits on the phone. Open a conversation and press Enter, or click the bottom bar: you type straight to that player / group / channel. Slash commands work as usual.
