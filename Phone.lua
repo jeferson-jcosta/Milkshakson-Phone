@@ -52,14 +52,15 @@ local KIND_ICON = {
     whisper = "Interface\\Icons\\INV_Misc_QuestionMark", bn = "Interface\\Icons\\INV_Misc_Note_06",
     guild = "Interface\\Icons\\INV_Shirt_GuildTabard_01", officer = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
     party = "Interface\\Icons\\Ability_Warrior_RallyingCry", raid = "Interface\\Icons\\Ability_Warrior_BattleShout",
-    instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_Head_Human_01",
+    instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_GroupNeedMore",
     channel = "Interface\\Icons\\INV_Letter_15", system = "Interface\\Icons\\INV_Misc_Gear_01",
     npc = "Interface\\Icons\\Ability_Hunter_BeastCall",
 }
--- Channel icons by name (any client language): business, defense.
+-- Channel icons by name (any client language): business, defense, zone map.
 local CHANNEL_ICON = {
     { "Interface\\Icons\\INV_Misc_Coin_01", { "trade", "comércio", "comercio", "handel", "commerce" } },
     { "Interface\\Icons\\INV_Sword_04", { "defense", "defesa", "defensa", "verteidigung", "défense" } },
+    { "Interface\\Icons\\INV_Misc_Map_01", { "general", "geral", "allgemein", "général" } },
 }
 local function ChannelIcon(name)
     name = (name or ""):lower()

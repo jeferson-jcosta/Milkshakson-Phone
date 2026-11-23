@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Icons: Trade channels a coin, LocalDefense a sword, Nearby a person (NPCs got their own icon).
+- Icons: Trade channels a coin, LocalDefense a sword, General a map, Nearby a group of people (NPCs got their own icon).
 - Filters (options): show system messages (off by default), show the NPCs chat (off by default). When off they are not kept at all.
 - Text colors by chat type (on by default): guild green, party blue, raid orange, whispers pink... taken from the game's own chat colors.
 - Performance: redraws are grouped (at most ~4 per second, however busy the chat is); a new message only adds its bubble; the open chat draws its last 50 messages and loads 50 more when you scroll to the top; nothing is drawn while the phone is minimized or hidden.
