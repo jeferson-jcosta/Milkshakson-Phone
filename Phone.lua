@@ -975,7 +975,10 @@ local function PlaceMsg(c, m, maxW, group)
         local top = showName and 19 or 6
         b.text:SetPoint("TOPLEFT", 8, -top)
         w, h = inner + 18, top + Num(b.text:GetStringHeight(), 14) + 17
-        if m.out then
+        -- alignment option: "messenger" (yours right), "left" (all left), "right" (all right)
+        local align = settings.align or "messenger"
+        local right = (align == "right") or (align == "messenger" and m.out)
+        if right then
             b:SetPoint("TOPRIGHT", chatContent, "TOPRIGHT", -8, -view.y)
         else
             b:SetPoint("TOPLEFT", chatContent, "TOPLEFT", 8, -view.y)

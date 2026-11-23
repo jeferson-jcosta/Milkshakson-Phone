@@ -13,6 +13,9 @@ function ns:BuildOptions(db)
     UI:Check(p, L.CFG_CHAT, L.CFG_CHAT_TIP, function() return db.replaceChat end, function(v) ns:SetReplace(v) end)
     UI:Slider(p, L.CFG_FONT, 0.8, 1.6, 0.05, "%.2fx", function() return db.fontScale end,
         function(v) db.fontScale = math.floor(v * 100 + 0.5) / 100; if ns.ApplyFontScale then ns:ApplyFontScale() end end, L.CFG_FONT_TIP)
+    UI:Note(p, L.CFG_ALIGN)
+    UI:Radio(p, { { "messenger", L.ALIGN_MESSENGER }, { "left", L.ALIGN_LEFT }, { "right", L.ALIGN_RIGHT } },
+        function() return db.align end, function(v) db.align = v; if ns.Redraw then ns:Redraw() end end)
     UI:Check(p, L.CFG_HOVER, L.CFG_HOVER_TIP, function() return db.hoverExpand end, function(v) db.hoverExpand = v end)
     UI:Check(p, L.CFG_ANIMATE, nil, function() return db.animate end, function(v) db.animate = v end)
     UI:Slider(p, L.CFG_ANIM_TIME, 0.05, 1, 0.05, "%.2f s", function() return db.animTime end,

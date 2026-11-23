@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Option: message alignment - Messenger (yours on the right, default), All on the left, All on the right. Your bubbles stay green.
 - Option: font size of the phone (0.80x - 1.60x of the game's size), for every text; list rows grow with it; applied at once.
 - Minimized: a click on the "Chats" header restores the phone (dragging it still moves it).
 - Typing while minimized (Enter, "/" for a command, "r" to reply) no longer restores the phone: the typing box shows over the header while you type and goes away after sending or Escape.
