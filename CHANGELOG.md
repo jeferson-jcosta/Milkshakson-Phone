@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Always joins General, Trade and LocalDefense on login, /reload and zone change (only the ones you are not in; names in the client's language). Option to turn it off.
 - Two panes, like a desktop messenger: chats on the left, the open chat on the right (no more back button). Opens the last chat on login.
 - Always at the top of the left pane: party (or raid) and guild while you are in one, then the channels you are in (General, Trade, LocalDefense, LFG...), even with no messages yet. Muted chats show a grey count of new messages.
 - Fix: messages and list rows could be invisible (the scrolling area started 10 px wide).

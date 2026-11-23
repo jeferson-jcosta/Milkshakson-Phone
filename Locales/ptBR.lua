@@ -76,4 +76,7 @@ L.CFG_DATA_NOTE  = "WTF\\Account\\<conta>\\<reino>\\<personagem>\\SavedVariables
 L.PICK           = "Escolha uma conversa à esquerda"
 L.CHANNELS       = "Canais"
 L.NO_MSGS        = "Nenhuma mensagem ainda"
+L.PROBE_JOIN     = "Entrar sozinho: canais %s; entrou agora em: %s."
+L.CFG_AUTOJOIN   = "Sempre entrar em Geral, Comércio e DefesaLocal"
+L.CFG_AUTOJOIN_TIP = "Ao entrar no jogo, no /reload e ao trocar de zona, entra nos que estiverem faltando (Comércio só existe nas cidades)."
 L.CFG_LANGUAGE   = "Idioma"

@@ -9,6 +9,7 @@ S.DEFAULTS = {
     replaceChat = true,   -- the phone takes the place of the game's chat
     muteChannels = true,  -- new public channels (Trade, General...) start muted
     muteSystem = true,    -- System / NPC conversations start muted
+    autoJoin = true,      -- join General / Trade / LocalDefense on login and zone change
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,
 }

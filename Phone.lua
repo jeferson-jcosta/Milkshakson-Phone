@@ -327,6 +327,43 @@ end
 ns.Channels = Channels
 
 ---------------------------------------------------------------------------
+-- Auto-join General, Trade and LocalDefense (names are localized: the
+-- server's own channel list is used, matched against known names)
+---------------------------------------------------------------------------
+local WANTED = {
+    general = true, geral = true, allgemein = true, ["général"] = true,
+    trade = true, ["comércio"] = true, comercio = true, handel = true, commerce = true,
+    localdefense = true, defesalocal = true, defensalocal = true, lokaleverteidigung = true, ["défenselocale"] = true,
+}
+ns.WANTED = WANTED
+
+local function Joined(name)
+    if not GetChannelName then return false end
+    local id = GetChannelName(name)
+    return (tonumber(id) or 0) > 0
+end
+
+function ns:AutoJoin()
+    if not settings.autoJoin or not JoinChannelByName then return end
+    local names = {}
+    if EnumerateServerChannels then
+        for _, n in ipairs({ EnumerateServerChannels() }) do
+            if type(n) == "string" and WANTED[n:lower():gsub("%s", "")] then names[#names + 1] = n end
+        end
+    end
+    if #names == 0 then names = { "General", "Trade", "LocalDefense" } end
+    local done = {}
+    for _, n in ipairs(names) do
+        if not Joined(n) then
+            local ok = pcall(JoinChannelByName, n)
+            done[#done + 1] = n .. (ok and "" or "(error)")
+        end
+    end
+    settings.lastJoin = { t = time(), tried = table.concat(names, ", "), joined = table.concat(done, ", ") }
+    return done
+end
+
+---------------------------------------------------------------------------
 -- List view
 ---------------------------------------------------------------------------
 local function RowMenu(owner, c)
@@ -842,7 +879,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "GetChannelList", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
+    "C_BattleNet.GetAccountInfoByID", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
 }
 
 local function Lookup(path)
@@ -925,10 +962,19 @@ ev:SetScript("OnEvent", function(self, event, ...)
         if settings.replaceChat then ApplyReplace(true) end
         UpdateStatus()
         Later()
+        -- the game joins its own channels a moment after loading: join what is missing after that
+        if C_Timer and C_Timer.After then
+            C_Timer.After(4, function() ns:AutoJoin(); Later() end)
+        else
+            ns:AutoJoin()
+        end
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
         ns:Unblock()
         UpdateStatus()
-        if event == "ZONE_CHANGED_NEW_AREA" then Later() end
+        if event == "ZONE_CHANGED_NEW_AREA" then
+            if C_Timer and C_Timer.After then C_Timer.After(3, function() ns:AutoJoin(); Later() end) else ns:AutoJoin() end
+            Later()
+        end
     elseif event == "CHANNEL_UI_UPDATE" or event == "CHAT_MSG_CHANNEL_NOTICE" or event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_GUILD_UPDATE" then
         Later()
     else
@@ -964,6 +1010,8 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         local ok, missing = ns:Probe()
         print(PREFIX .. L.PROBE_OK:format(#ok, table.concat(ok, ", ")))
         print(PREFIX .. L.PROBE_MISSING:format(#missing, #missing > 0 and table.concat(missing, ", ") or "-"))
+        local j = settings.lastJoin
+        if j then print(PREFIX .. L.PROBE_JOIN:format(j.tried, j.joined ~= "" and j.joined or "-")) end
         local s = settings.secret
         if s then
             print(PREFIX .. L.PROBE_SECRET:format(s.n, s.ev or "?", date("%d/%m %H:%M", s.t or 0),

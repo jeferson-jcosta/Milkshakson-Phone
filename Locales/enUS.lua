@@ -76,4 +76,7 @@ L.CFG_DATA_NOTE  = "WTF\\Account\\<account>\\<realm>\\<character>\\SavedVariable
 L.PICK           = "Pick a chat on the left"
 L.CHANNELS       = "Channels"
 L.NO_MSGS        = "No messages yet"
+L.PROBE_JOIN     = "Auto-join: channels %s; joined now: %s."
+L.CFG_AUTOJOIN   = "Always join General, Trade and LocalDefense"
+L.CFG_AUTOJOIN_TIP = "On login, /reload and zone change, joins the ones you are not in (Trade only exists in cities)."
 L.CFG_LANGUAGE   = "Language"

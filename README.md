@@ -2,6 +2,7 @@
 
 Your chat as a **phone messenger**. Instead of one stream mixing whispers, guild, party, trade and loot, every player, group and channel gets its **own conversation**:
 
+- **Always in General, Trade and LocalDefense**: joins them by itself on login, /reload and zone change (option).
 - **Two panes**: chats on the left, the open chat on the right.
 - **Always on top**: party / raid and guild while you are in one, then the channels you are in (General, Trade, LocalDefense, LFG...).
 - **Chats list**: one line per conversation with the last message, the time and an unread badge. Newest first; pin the ones you care about to the top.
