@@ -10,6 +10,9 @@ S.DEFAULTS = {
     muteChannels = true,  -- new public channels (Trade, General...) start muted
     muteSystem = true,    -- System / NPC conversations start muted
     autoJoin = true,      -- join General / Trade / LocalDefense on login and zone change
+    showSystem = false,   -- System conversation (loot, XP, crafting...) off by default
+    showNPC = false,      -- NPCs conversation off by default
+    typeColors = true,    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,
 }
@@ -85,14 +88,15 @@ end
 local function B(v) return v and 1 or 0 end
 
 -- Conversations with messages (or pinned): `top` keys first (in that order,
--- even when empty), then pinned, then newest first. noChannels: channels
--- are in the side bar.
-function S:List(top, noChannels)
+-- even when empty), then pinned, then newest first. hide = { kind = true }:
+-- kinds switched off in the options.
+function S:List(top, hide)
+    hide = hide or {}
     local rank = {}
     for i, k in ipairs(top or {}) do rank[k] = i end
     local t = {}
     for _, c in pairs(self:Char().convs) do
-        if rank[c.key] or ((#c.msgs > 0 or c.pinned) and not (noChannels and c.kind == "channel")) then
+        if not hide[c.kind] and (rank[c.key] or #c.msgs > 0 or c.pinned) then
             t[#t + 1] = c
         end
     end
@@ -106,10 +110,11 @@ function S:List(top, noChannels)
     return t
 end
 
-function S:Unread()
+function S:Unread(hide)
+    hide = hide or {}
     local n = 0
     for _, c in pairs(self:Char().convs) do
-        if not c.muted then n = n + (c.unread or 0) end
+        if not c.muted and not hide[c.kind] then n = n + (c.unread or 0) end
     end
     return n
 end

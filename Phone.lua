@@ -9,7 +9,7 @@ local PREFIX = "|cff25d366[Phone]|r "
 local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
-local SHOW_MSGS = 120
+local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
 -- Dark messenger palette.
 local COL = {
@@ -18,6 +18,36 @@ local COL = {
     text = { 0.91, 0.93, 0.94 }, sub = { 0.53, 0.59, 0.63 }, accent = { 0.145, 0.827, 0.4 },
     sep = { 0.14, 0.19, 0.21 }, input = { 0.165, 0.224, 0.259 }, warn = { 0.55, 0.32, 0.05 },
 }
+local settings
+
+-- Text colors per chat type: the game's own (ChatTypeInfo, follows the
+-- player's chat color settings), with the default colors as fallback.
+local TYPE_COL = {
+    GUILD = { 0.25, 1, 0.25 }, GUILD_ACHIEVEMENT = { 0.25, 1, 0.25 }, OFFICER = { 0.25, 0.75, 0.25 },
+    PARTY = { 0.67, 0.67, 1 }, PARTY_LEADER = { 0.46, 0.78, 1 },
+    RAID = { 1, 0.5, 0 }, RAID_LEADER = { 1, 0.28, 0.04 }, RAID_WARNING = { 1, 0.28, 0 },
+    INSTANCE_CHAT = { 1, 0.5, 0 }, INSTANCE_CHAT_LEADER = { 1, 0.86, 0.73 },
+    WHISPER = { 1, 0.5, 1 }, WHISPER_INFORM = { 1, 0.5, 1 }, AFK = { 1, 0.5, 1 }, DND = { 1, 0.5, 1 },
+    BN_WHISPER = { 0, 1, 0.96 }, BN_WHISPER_INFORM = { 0, 1, 0.96 },
+    SAY = { 1, 1, 1 }, YELL = { 1, 0.25, 0.25 }, EMOTE = { 1, 0.5, 0.25 }, TEXT_EMOTE = { 1, 0.5, 0.25 },
+    CHANNEL = { 1, 0.75, 0.75 }, SYSTEM = { 1, 1, 0 },
+    MONSTER_SAY = { 1, 1, 0.62 }, MONSTER_YELL = { 1, 0.25, 0.25 }, MONSTER_EMOTE = { 1, 0.5, 0.25 },
+}
+
+local function TypeColor(m, c)
+    if not (settings and settings.typeColors) or not m then return nil end
+    local ev = m.ev or ""
+    if ev == "CHANNEL" and c and c.chan then
+        local info = ChatTypeInfo and ChatTypeInfo["CHANNEL" .. c.chan]
+        if info and info.r then return { info.r, info.g, info.b } end
+    end
+    local info = ChatTypeInfo and ChatTypeInfo[ev]
+    if info and info.r then return { info.r, info.g, info.b } end
+    if TYPE_COL[ev] then return TYPE_COL[ev] end
+    if c and c.kind == "system" then return TYPE_COL.SYSTEM end
+end
+ns.TypeColor = TypeColor
+
 local KIND_ICON = {
     whisper = "Interface\\Icons\\INV_Misc_QuestionMark", bn = "Interface\\Icons\\INV_Misc_Note_06",
     guild = "Interface\\Icons\\INV_Shirt_GuildTabard_01", officer = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
@@ -28,7 +58,6 @@ local KIND_ICON = {
 }
 local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", guild = "GUILD", officer = "OFFICER", ["local"] = "SAY" }
 
-local settings
 local phone, clockText, zoneText, banner, grip
 local listView, listTitle, listScroll, listContent, emptyText
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
@@ -176,7 +205,7 @@ local function TextButton(parent, label, onClick, tip)
     return b
 end
 
-local function Scroller(parent)
+local function Scroller(parent, onTop)
     local s = CreateFrame("ScrollFrame", nil, parent)
     local c = CreateFrame("Frame", nil, s)
     c:SetSize(10, 10)
@@ -184,7 +213,9 @@ local function Scroller(parent)
     s:EnableMouseWheel(true)
     s:SetScript("OnMouseWheel", function(self, d)
         local max = Num(self:GetVerticalScrollRange(), 0)
-        self:SetVerticalScroll(math.max(0, math.min(max, self:GetVerticalScroll() - d * 48)))
+        local v = Num(self:GetVerticalScroll(), 0)
+        if d > 0 and v <= 0 and onTop then onTop() return end
+        self:SetVerticalScroll(math.max(0, math.min(max, v - d * 48)))
     end)
     s:SetScript("OnSizeChanged", function(_, w) if Num(w, 0) > 1 then c:SetWidth(w) end end)
     return s, c
@@ -315,6 +346,12 @@ end
 ---------------------------------------------------------------------------
 -- Fixed conversations (party / guild on top) and joined channels
 ---------------------------------------------------------------------------
+-- Conversations switched off in the options (not stored, not listed).
+local function HiddenKinds()
+    return { system = not settings.showSystem or nil, npc = not settings.showNPC or nil }
+end
+ns.HiddenKinds = HiddenKinds
+
 local function TopKeys()
     local t = {}
     if IsInRaid and IsInRaid() then t[#t + 1] = "raid"
@@ -472,7 +509,7 @@ end
 
 local function RenderList()
     FitWidth(listScroll, listContent, LIST_W)
-    local list = Store:List(TopKeys())
+    local list = Store:List(TopKeys(), HiddenKinds())
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -486,6 +523,8 @@ local function RenderList()
         local m = c.msgs[#c.msgs]
         r.time:SetText(m and ListTime(m.t) or "")
         r.prev:SetText(m and Preview(c, m) or L.NO_MSGS)
+        local pc = TypeColor(m, c) or COL.sub
+        r.prev:SetTextColor(pc[1], pc[2], pc[3])
         local n = c.muted and (c.unseen or 0) or (c.unread or 0)
         r.sel:SetShown(openKey == c.key)
         if n > 0 then
@@ -555,18 +594,98 @@ local function AtBottom()
     return r - v < 30
 end
 
-local function RenderChat(forceBottom)
+-- What is drawn now, so a new message only adds its own bubble.
+local view = { show = PAGE }
+
+local function ResetView(key, width)
     for _, b in ipairs(bubbles) do b:Hide() end
-    for _, s in ipairs(seps) do s:Hide() end
+    for _, x in ipairs(seps) do x:Hide() end
+    view.key, view.width, view.y, view.nb, view.nsep, view.lastDay, view.last, view.count, view.first =
+        key, width, 8, 0, 0, nil, nil, 0, nil
+end
+
+local function PlaceMsg(c, m, maxW, group)
+    local day = Today(m.t)
+    if day ~= view.lastDay then
+        view.lastDay = day
+        view.nsep = view.nsep + 1
+        local x = Sep(view.nsep)
+        x.text:SetText(DayLabel(m.t))
+        x:SetSize(Num(x.text:GetUnboundedStringWidth(), 60) + 18, 18)
+        x:ClearAllPoints()
+        x:SetPoint("TOP", chatContent, "TOP", 0, -view.y)
+        x:Show()
+        view.y = view.y + 26
+    end
+    view.nb = view.nb + 1
+    local b = Bubble(view.nb)
+    local tc = TypeColor(m, c)
+    b.text:ClearAllPoints()
+    b.text:SetWidth(maxW)
+    b.text:SetText(Body(m))
+    local tw = math.min(maxW, Num(b.text:GetUnboundedStringWidth(), maxW))
+    local w, h
+    b:ClearAllPoints()
+    if m.info then
+        local t = COL.info
+        b.bg:SetColorTexture(t[1], t[2], t[3], 1)
+        local fc = tc or COL.sub
+        b.text:SetTextColor(fc[1], fc[2], fc[3])
+        b.text:SetJustifyH("CENTER")
+        b.name:Hide()
+        b.time:Hide()
+        b.text:SetWidth(tw + 2)
+        b.text:SetPoint("TOPLEFT", 8, -5)
+        w, h = tw + 18, Num(b.text:GetStringHeight(), 14) + 10
+        b:SetPoint("TOP", chatContent, "TOP", 0, -view.y)
+    else
+        local t = m.out and COL.outB or COL.inB
+        b.bg:SetColorTexture(t[1], t[2], t[3], 1)
+        local fc = tc or COL.text
+        b.text:SetTextColor(fc[1], fc[2], fc[3])
+        b.text:SetJustifyH("LEFT")
+        local showName = group and not m.out and m.from
+        local nw = 0
+        if showName then
+            local nc = ClassColor(m.cls) or COL.accent
+            b.name:SetText(m.from .. (m.tag == "leader" and (" (" .. L.LEADER .. ")") or ""))
+            b.name:SetTextColor(nc[1], nc[2], nc[3])
+            b.name:Show()
+            nw = Num(b.name:GetUnboundedStringWidth(), 0)
+        else
+            b.name:Hide()
+        end
+        b.time:SetText(Clock(m.t))
+        b.time:Show()
+        local inner = math.max(tw, math.min(nw, maxW), Num(b.time:GetUnboundedStringWidth(), 30))
+        b.text:SetWidth(inner + 2)
+        local top = showName and 19 or 6
+        b.text:SetPoint("TOPLEFT", 8, -top)
+        w, h = inner + 18, top + Num(b.text:GetStringHeight(), 14) + 17
+        if m.out then
+            b:SetPoint("TOPRIGHT", chatContent, "TOPRIGHT", -8, -view.y)
+        else
+            b:SetPoint("TOPLEFT", chatContent, "TOPLEFT", 8, -view.y)
+        end
+    end
+    b:SetSize(w, h)
+    b:Show()
+    view.y = view.y + h + 5
+    view.count = view.count + 1
+end
+
+-- mode: "open" (full, scroll to the end), "more" (full, keep the place),
+-- nil (only add what is new; full when the size changed or it grew too much).
+local function RenderChat(mode)
     local c = Store:Get(openKey)
     if not c then
+        ResetView(nil, 0)
         chatTitle:SetText(L.PICK)
         chatTitle:SetTextColor(COL.sub[1], COL.sub[2], COL.sub[3])
         chatSub:SetText("")
         chatIcon:SetTexture(KIND_ICON.channel)
         return 0
     end
-    local stick = forceBottom or AtBottom()
     chatTitle:SetText(Title(c))
     local cc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.text
     chatTitle:SetTextColor(cc[1], cc[2], cc[3])
@@ -575,78 +694,39 @@ local function RenderChat(forceBottom)
 
     local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - LIST_W)
     local maxW = math.floor(width * 0.8) - 16
-    local group = IsGroup(c.kind)
-    local y, nb, nsep, lastDay = 8, 0, 0, nil
     local msgs = c.msgs
-    for i = math.max(1, #msgs - SHOW_MSGS + 1), #msgs do
-        local m = msgs[i]
-        local day = Today(m.t)
-        if day ~= lastDay then
-            lastDay = day
-            nsep = nsep + 1
-            local s = Sep(nsep)
-            s.text:SetText(DayLabel(m.t))
-            s:SetSize(Num(s.text:GetUnboundedStringWidth(), 60) + 18, 18)
-            s:ClearAllPoints()
-            s:SetPoint("TOP", chatContent, "TOP", 0, -y)
-            s:Show()
-            y = y + 26
+    local stick = mode == "open" or (mode == nil and AtBottom())
+    local from
+    if mode == nil and view.key == c.key and view.width == width then
+        if view.last == nil and #msgs == 0 then return view.count end
+        for i = #msgs, 1, -1 do
+            if msgs[i] == view.last then from = i + 1 break end
         end
-        nb = nb + 1
-        local b = Bubble(nb)
-        b.text:ClearAllPoints()
-        b.text:SetWidth(maxW)
-        b.text:SetText(Body(m))
-        local tw = math.min(maxW, Num(b.text:GetUnboundedStringWidth(), maxW))
-        local w, h
-        b:ClearAllPoints()
-        if m.info then
-            local t = COL.info
-            b.bg:SetColorTexture(t[1], t[2], t[3], 1)
-            b.text:SetTextColor(COL.sub[1], COL.sub[2], COL.sub[3])
-            b.text:SetJustifyH("CENTER")
-            b.name:Hide()
-            b.time:Hide()
-            b.text:SetWidth(tw + 2)
-            b.text:SetPoint("TOPLEFT", 8, -5)
-            w, h = tw + 18, Num(b.text:GetStringHeight(), 14) + 10
-            b:SetPoint("TOP", chatContent, "TOP", 0, -y)
-        else
-            local t = m.out and COL.outB or COL.inB
-            b.bg:SetColorTexture(t[1], t[2], t[3], 1)
-            b.text:SetTextColor(COL.text[1], COL.text[2], COL.text[3])
-            b.text:SetJustifyH("LEFT")
-            local showName = group and not m.out and m.from
-            local nw = 0
-            if showName then
-                local nc = ClassColor(m.cls) or COL.accent
-                b.name:SetText(m.from .. (m.tag == "leader" and (" (" .. L.LEADER .. ")") or ""))
-                b.name:SetTextColor(nc[1], nc[2], nc[3])
-                b.name:Show()
-                nw = Num(b.name:GetUnboundedStringWidth(), 0)
-            else
-                b.name:Hide()
-            end
-            b.time:SetText(Clock(m.t))
-            b.time:Show()
-            local inner = math.max(tw, math.min(nw, maxW), Num(b.time:GetUnboundedStringWidth(), 30))
-            b.text:SetWidth(inner + 2)
-            local top = showName and 19 or 6
-            b.text:SetPoint("TOPLEFT", 8, -top)
-            w, h = inner + 18, top + Num(b.text:GetStringHeight(), 14) + 17
-            if m.out then
-                b:SetPoint("TOPRIGHT", chatContent, "TOPRIGHT", -8, -y)
-            else
-                b:SetPoint("TOPLEFT", chatContent, "TOPLEFT", 8, -y)
-            end
-        end
-        b:SetSize(w, h)
-        b:Show()
-        y = y + h + 5
+        if from and view.count + (#msgs - from + 1) > view.show + PAGE then from = nil end
     end
-    chatContent:SetHeight(y + 4)
+    if not from then
+        ResetView(c.key, width)
+        from = math.max(1, #msgs - view.show + 1)
+        view.first = from
+    end
+    local group = IsGroup(c.kind)
+    for i = from, #msgs do PlaceMsg(c, msgs[i], maxW, group) end
+    view.last = msgs[#msgs]
+    chatContent:SetHeight(view.y + 4)
     if stick then ScrollBottom() end
-    return nb
+    return view.count
+end
+ns.View = view
+
+-- Scrolled to the top: draw an older page, keeping the same message on screen.
+function ns:More()
+    local c = Store:Get(openKey)
+    if not c or not view.first or view.first <= 1 then return end
+    local oldH, oldV = view.y, Num(chatScroll:GetVerticalScroll(), 0)
+    view.show = view.show + PAGE
+    RenderChat("more")
+    if chatScroll.UpdateScrollChildRect then chatScroll:UpdateScrollChildRect() end
+    chatScroll:SetVerticalScroll(oldV + (view.y - oldH))
 end
 
 ---------------------------------------------------------------------------
@@ -682,7 +762,7 @@ function ns:Layout()
 end
 
 local function UpdateTitle()
-    local n = Store:Unread()
+    local n = Store:Unread(HiddenKinds())
     listTitle:SetText(n > 0 and L.CHATS_N:format(n) or L.CHATS)
 end
 
@@ -690,6 +770,7 @@ local pending
 local function DoRefresh(_, key)
     if not phone then return end
     UpdateTitle()
+    if not phone:IsShown() or settings.min then return end -- drawn when shown again
     RenderList()
     if openKey and (key == nil or key == openKey) then
         if not Store:Get(openKey) then openKey = nil; ns:Layout() else RenderChat() end
@@ -700,7 +781,7 @@ local function Later()
     if pending then return end
     pending = true
     local function run() pending = false; ns:Refresh() end
-    if C_Timer and C_Timer.After then C_Timer.After(0.05, run) else run() end
+    if C_Timer and C_Timer.After then C_Timer.After(0.25, run) else run() end
 end
 
 local function DoOpen(_, key)
@@ -710,14 +791,28 @@ local function DoOpen(_, key)
     Store:Read(key)
     local c = Store:Get(key)
     if c then ns:SetSticky(c) end
+    if view.key ~= key then view.show = PAGE end
     ns:Layout()
-    RenderChat(true)
+    RenderChat("open")
     UpdateTitle()
     RenderList()
 end
 
 function ns:Refresh(key) return Safe(DoRefresh, ns, key) end
+ns.Later = Later
 function ns:Open(key) return Safe(DoOpen, ns, key) end
+
+-- A kind was switched off: leave its conversation if it is open.
+function ns:CloseKind(kind)
+    local c = Store:Get(openKey)
+    if c and c.kind == kind then openKey = nil; ns:Layout() end
+end
+
+-- Draw everything again (colors changed).
+function ns:Redraw()
+    view.key = nil
+    ns:Refresh()
+end
 
 function ns:Back()
     openKey = nil
@@ -865,7 +960,7 @@ local function Build()
     chatSub:SetPoint("BOTTOMLEFT", chatIcon, "BOTTOMRIGHT", 8, 1)
     chatSub:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
     chatSub:SetWordWrap(false)
-    chatScroll, chatContent = Scroller(chatView)
+    chatScroll, chatContent = Scroller(chatView, function() Safe(ns.More, ns) end)
     chatScroll:SetPoint("TOPLEFT", ch, "BOTTOMLEFT", 0, -2)
     chatScroll:SetPoint("BOTTOMRIGHT")
 
@@ -907,6 +1002,7 @@ local function Build()
         ns:Refresh()
     end)
     phone:SetScript("OnSizeChanged", function() Later() end)
+    phone:SetScript("OnShow", function() Later() end)
 
     -- Typing (Enter) while minimized / hidden opens the phone.
     local e = EditBox()
@@ -970,6 +1066,7 @@ chat:SetScript("OnEvent", function(_, event, ...)
         if why == "secret" then ns:Blocked(event) end
         return
     end
+    if (r.kind == "system" and not settings.showSystem) or (r.kind == "npc" and not settings.showNPC) then return end
     Safe(Store.Add, Store, r, ns:IsOpen(r.key))
 end)
 
@@ -991,7 +1088,7 @@ local function OnEvent(self, event, ...)
             timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
             OnAccept = function() openKey = nil; Store:Clear(); ns:Layout(); print(PREFIX .. L.CLEARED) end,
         }
-        Store:OnChange(function(key) ns:Refresh(key) end)
+        Store:OnChange(function() Later() end) -- many messages per second become one redraw
         for _, e in ipairs(Route.EVENTS) do pcall(chat.RegisterEvent, chat, e) end
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",

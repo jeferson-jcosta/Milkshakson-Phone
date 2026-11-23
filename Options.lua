@@ -18,6 +18,12 @@ function ns:BuildOptions(db)
 
     UI:Section(p, L.CFG_CONVS)
     UI:Check(p, L.CFG_AUTOJOIN, L.CFG_AUTOJOIN_TIP, function() return db.autoJoin end, function(v) db.autoJoin = v; if v then ns:AutoJoin() end end)
+    UI:Section(p, L.CFG_FILTERS)
+    local function Hide(kind, on) if not on and ns.CloseKind then ns:CloseKind(kind) end R() end
+    UI:Check(p, L.CFG_SYSTEM, L.CFG_SYSTEM_TIP, function() return db.showSystem end, function(v) db.showSystem = v; Hide("system", v) end)
+    UI:Check(p, L.CFG_NPC, nil, function() return db.showNPC end, function(v) db.showNPC = v; Hide("npc", v) end)
+    UI:Check(p, L.CFG_COLORS, L.CFG_COLORS_TIP, function() return db.typeColors end, function(v) db.typeColors = v; if ns.Redraw then ns:Redraw() end end)
+    p.y = p.y - 8
     UI:Check(p, L.CFG_MUTE_CH, nil, function() return db.muteChannels end, function(v) db.muteChannels = v end)
     UI:Check(p, L.CFG_MUTE_SYS, nil, function() return db.muteSystem end, function(v) db.muteSystem = v end)
     UI:Slider(p, L.CFG_MAX, 50, 1000, 50, "%d", function() return db.maxMsgs end,

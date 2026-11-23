@@ -1,6 +1,9 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Filters (options): show system messages (off by default), show the NPCs chat (off by default). When off they are not kept at all.
+- Text colors by chat type (on by default): guild green, party blue, raid orange, whispers pink... taken from the game's own chat colors.
+- Performance: redraws are grouped (at most ~4 per second, however busy the chat is); a new message only adds its bubble; the open chat draws its last 50 messages and loads 50 more when you scroll to the top; nothing is drawn while the phone is minimized or hidden.
 - Fix: nothing was drawn (list rows and messages) — on WoW: Forever a masked icon can't be cropped (SetTexCoord error). Icons are no longer masked.
 - Errors are shown on the phone (red box, click to close) instead of failing silently; last one saved in the settings.
 - Joined channels read with GetChannelName (works on every client version).
