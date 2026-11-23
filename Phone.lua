@@ -52,10 +52,23 @@ local KIND_ICON = {
     whisper = "Interface\\Icons\\INV_Misc_QuestionMark", bn = "Interface\\Icons\\INV_Misc_Note_06",
     guild = "Interface\\Icons\\INV_Shirt_GuildTabard_01", officer = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
     party = "Interface\\Icons\\Ability_Warrior_RallyingCry", raid = "Interface\\Icons\\Ability_Warrior_BattleShout",
-    instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_Note_01",
+    instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_Head_Human_01",
     channel = "Interface\\Icons\\INV_Letter_15", system = "Interface\\Icons\\INV_Misc_Gear_01",
-    npc = "Interface\\Icons\\INV_Misc_Head_Human_01",
+    npc = "Interface\\Icons\\Ability_Hunter_BeastCall",
 }
+-- Channel icons by name (any client language): business, defense.
+local CHANNEL_ICON = {
+    { "Interface\\Icons\\INV_Misc_Coin_01", { "trade", "comércio", "comercio", "handel", "commerce" } },
+    { "Interface\\Icons\\INV_Sword_04", { "defense", "defesa", "defensa", "verteidigung", "défense" } },
+}
+local function ChannelIcon(name)
+    name = (name or ""):lower()
+    for _, x in ipairs(CHANNEL_ICON) do
+        for _, w in ipairs(x[2]) do
+            if name:find(w, 1, true) then return x[1] end
+        end
+    end
+end
 local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", guild = "GUILD", officer = "OFFICER", ["local"] = "SAY" }
 
 local phone, clockText, zoneText, banner, grip
@@ -176,10 +189,12 @@ local function SetIcon(tex, c)
         tex:SetTexture(CLASS_TEX)
         tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else
-        tex:SetTexture(KIND_ICON[c.kind] or KIND_ICON.whisper)
+        tex:SetTexture((c.kind == "channel" and ChannelIcon(c.name)) or KIND_ICON[c.kind] or KIND_ICON.whisper)
         tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
 end
+
+ns.SetIcon = SetIcon
 
 local function Round(tex) if tex.SetMask then pcall(tex.SetMask, tex, MASK) end end
 
