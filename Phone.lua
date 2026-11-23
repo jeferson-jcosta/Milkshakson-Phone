@@ -596,8 +596,8 @@ end
 ---------------------------------------------------------------------------
 -- Sender name as the game's player link: |Hplayer:Name-Realm:lineID|h Name |h
 local function PlayerLink(m)
-    if not m.full or m.out or not m.from then return m.from or "" end
-    return "|Hplayer:" .. m.full .. (m.line and (":" .. m.line) or "") .. "|h" .. m.from .. "|h"
+    if m.out or not m.from then return m.from or "" end
+    return "|Hplayer:" .. (m.full or m.from) .. (m.line and (":" .. m.line) or "") .. "|h" .. m.from .. "|h"
 end
 ns.PlayerLink = PlayerLink
 
@@ -693,10 +693,16 @@ local function Bubble(i)
     -- right-click anywhere on a message from another player: player menu
     b:SetScript("OnMouseUp", function(self, button)
         local m = self.msg
-        if button == "RightButton" and m and not m.out and m.full then
-            Safe(ns.PlayerMenu, ns, self, m.full, m.line)
+        local who = m and not m.out and not m.info and (m.full or m.from) -- older messages have no full name
+        settings.lastClick = { button = tostring(button), who = who or "-", menu = (MenuUtil and MenuUtil.CreateContextMenu) and "yes" or "no" }
+        if button == "RightButton" and who then
+            Safe(ns.PlayerMenu, ns, self, who, m.line)
         end
     end)
+    -- hover: shows the message is clickable
+    b.hl = b:CreateTexture(nil, "HIGHLIGHT")
+    b.hl:SetAllPoints()
+    b.hl:SetColorTexture(1, 1, 1, 0.06)
     bubbles[i] = b
     return b
 end
@@ -1314,6 +1320,10 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
     elseif msg == "status" then
         local convs, msgs = Store:Counts()
         print(PREFIX .. L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF))
+        local k = settings.lastClick
+        local line = k and ("last click: " .. k.button .. " on " .. k.who .. ", menu API: " .. k.menu) or "last click: none"
+        print(PREFIX .. line)
+        if errorBox then errorBox.text:SetText(L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF) .. "\n" .. line .. "\n\n(click to close)"); errorBox:Show() end
     elseif msg == "probe" then
         local ok, missing = ns:Probe()
         print(PREFIX .. L.PROBE_OK:format(#ok, table.concat(ok, ", ")))
