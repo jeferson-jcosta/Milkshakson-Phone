@@ -1152,7 +1152,7 @@ end
 
 -- Minimized + option: the mouse over the phone opens it, leaving closes it again
 -- (not while typing or with a menu open). Polled: child frames eat OnEnter/OnLeave.
-local hover = CreateFrame("Frame")
+local hover = CreateFrame("Frame", nil, UIParent)
 local acc, outFor = 0, 0
 local function MenuOpen()
     if Menu and Menu.GetManager then
@@ -1162,11 +1162,13 @@ local function MenuOpen()
 end
 function ns:HoverTick(dt)
     if not phone then return end
+    ns.hoverTicks = (ns.hoverTicks or 0) + 1
     if not (settings.min and settings.hoverExpand and phone:IsShown()) then
         if ns.peek then ns.peek = false; ns:Layout() end
         return
     end
-    local over = MouseIsOver and MouseIsOver(phone)
+    local over
+    if phone.IsMouseOver then over = phone:IsMouseOver() elseif MouseIsOver then over = MouseIsOver(phone) end
     if not over then ns.holdPeek = nil end
     if over then
         outFor = 0
@@ -1407,7 +1409,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
+    "C_BattleNet.GetAccountInfoByID", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc", "MouseIsOver",
 }
 
 local function Lookup(path)
@@ -1592,6 +1594,8 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         local k = settings.lastClick
         local line = (k and ("last click: " .. k.button .. " on " .. k.who .. ", menu API: " .. k.menu) or "last click: none")
             .. "\ngame menu: " .. tostring(settings.lastMenu or "-")
+            .. "\nhover: option " .. tostring(settings.hoverExpand) .. ", minimized " .. tostring(settings.min)
+            .. ", mouse over " .. tostring(phone.IsMouseOver and phone:IsMouseOver()) .. ", ticks " .. tostring(ns.hoverTicks or 0)
         print(PREFIX .. line)
         if errorBox then errorBox.text:SetText(L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF) .. "\n" .. line .. "\n\n(click to close)"); errorBox:Show() end
     elseif msg == "probe" then
