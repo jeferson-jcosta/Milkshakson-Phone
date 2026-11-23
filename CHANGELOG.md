@@ -3,8 +3,9 @@
 ## Unreleased
 
 ## 0.2.0
+- Minimize / restore buttons are the game's - / + buttons (as in Ready Quests).
 - Smooth transition when minimizing / restoring: the height eases, the content fades in when restoring and fades out (before hiding) when minimizing. Option, on by default, with the time set by a slider (0.05 - 1 s, default 0.25 s).
-- Option (on by default): when minimized, the mouse over a count pill (Guild, Party, Whispers) opens the phone right on that chat; leaving minimizes it again (after half a second; not while typing or with a menu open). A click on it while it is open this way restores it for good; _ minimizes it until the mouse leaves.
+- Option (on by default): when minimized, the mouse over a count pill (Guild, Party, Whispers) opens the phone right on that chat; leaving minimizes it again (after half a second; not while typing or with a menu open). A click on it while it is open this way restores it for good; - minimizes it until the mouse leaves.
 - Minimized: colored count pills for Guild (green), Party / Raid (blue / orange) and Whispers (pink), in the game's chat colors, only when there is something unread. Click one to open that chat (whispers: the latest).
 
 ## 0.1.0

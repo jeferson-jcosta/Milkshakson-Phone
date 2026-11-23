@@ -230,6 +230,32 @@ local function TextButton(parent, label, onClick, tip)
     return b
 end
 
+-- Collapse / expand button (the game's -/+ buttons, as in ReadyQuests).
+local minButtons = {}
+local function MinButton(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(18, 18)
+    b:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight", "ADD")
+    b:SetScript("OnClick", function() ns:Minimize() end)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.TIP_MIN)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    minButtons[#minButtons + 1] = b
+    return b
+end
+
+-- "-" while open, "+" while minimized.
+local function UpdateMinButtons(min)
+    local tex = min and "Interface\\Buttons\\UI-PlusButton-" or "Interface\\Buttons\\UI-MinusButton-"
+    for _, b in ipairs(minButtons) do
+        b:SetNormalTexture(tex .. "Up")
+        b:SetPushedTexture(tex .. "Down")
+    end
+end
+
 local function Scroller(parent, onTop)
     local s = CreateFrame("ScrollFrame", nil, parent)
     local c = CreateFrame("Frame", nil, s)
@@ -997,6 +1023,7 @@ function ns:Layout()
     if not phone then return end
     local min = settings.min and not ns.peek -- peek: minimized, opened by the mouse
     local inChat = openKey ~= nil and not min
+    UpdateMinButtons(min)
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
@@ -1366,8 +1393,8 @@ local function Build()
     listHead = lh
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
     listTitle:SetPoint("LEFT", 12, 0)
-    local minB = TextButton(lh, "_", function() ns:Minimize() end, L.TIP_MIN)
-    minB:SetPoint("RIGHT", -6, 0)
+    local minB = MinButton(lh)
+    minB:SetPoint("RIGHT", -10, 0)
     listScroll, listContent = Scroller(listView)
     listScroll:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 0, -2)
     listScroll:SetPoint("BOTTOMRIGHT")
@@ -1389,8 +1416,8 @@ local function Build()
     chatIcon:SetSize(30, 30)
     chatIcon:SetPoint("LEFT", 10, 0)
     -- no mask here either (SetTexCoord is used on it)
-    local minC = TextButton(ch, "_", function() ns:Minimize() end, L.TIP_MIN)
-    minC:SetPoint("RIGHT", -6, 0)
+    local minC = MinButton(ch)
+    minC:SetPoint("RIGHT", -10, 0)
     local cfgC = TextButton(ch, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
     cfgC:SetPoint("RIGHT", minC, "LEFT", -2, 0)
     chatTitle = Font(ch, "GameFontHighlight", COL.text)
