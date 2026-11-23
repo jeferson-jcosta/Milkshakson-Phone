@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Typing while minimized (Enter, "/" for a command, "r" to reply) no longer restores the phone: the typing box shows over the header while you type and goes away after sending or Escape.
 
 ## 0.2.1
 - Fix: minimized, the game's typing box (always shown with some chat styles) covered the count pills, so the mouse over a pill did nothing. While minimized it is moved below the phone (outside its area), invisible and click-through, so it covers neither the pills nor the + button; Enter restores the phone.

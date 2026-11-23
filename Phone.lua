@@ -330,13 +330,35 @@ function ns:PlaceEditBox(min)
     local e = ns.docked and EditBox()
     if not e then return end
     e:ClearAllPoints()
-    if min then
+    if min == "header" then -- typing while minimized: over the header, the phone stays small
+        e:SetPoint("TOPLEFT", phone, "TOPLEFT", 4, -STATUS_H - 4)
+        e:SetPoint("BOTTOMRIGHT", phone, "TOPRIGHT", -4, -STATUS_H - HEAD_H + 4)
+    elseif min then
         e:SetPoint("TOPLEFT", phone, "BOTTOMLEFT", 0, -40)
         e:SetPoint("TOPRIGHT", phone, "BOTTOMRIGHT", 0, -40)
     else
         e:SetPoint("TOPLEFT", inputBar, "TOPLEFT", -2, 2)
         e:SetPoint("BOTTOMRIGHT", inputBar, "BOTTOMRIGHT", 2, -2)
     end
+end
+
+-- Typing box for the current state: on the bar (open), over the header (minimized
+-- and typing), or out of the way (minimized, not typing).
+function ns:SyncEditBox(min)
+    local e = ns.docked and EditBox()
+    if not e then return end
+    if min == nil then min = settings.min and not ns.peek end
+    local typing = e.HasFocus and e:HasFocus()
+    if not min then
+        ns:PlaceEditBox(false)
+    elseif typing then
+        ns:PlaceEditBox("header")
+    else
+        ns:PlaceEditBox(true)
+    end
+    local hide = min and not typing
+    e:SetAlpha(hide and 0 or 1)
+    if e.EnableMouse then e:EnableMouse(not hide) end
 end
 
 local ebHome -- { parent, points } of the edit box before docking
@@ -1055,13 +1077,7 @@ function ns:Layout()
     UpdateMinButtons(min)
     -- Minimized: the game's typing box (always shown with some chat styles) would sit
     -- over the header and take the mouse from the pills: invisible and click-through.
-    local e = ns.docked and EditBox()
-    if e then
-        local hide = min and not (e.HasFocus and e:HasFocus())
-        ns:PlaceEditBox(hide)
-        e:SetAlpha(hide and 0 or 1)
-        if e.EnableMouse then e:EnableMouse(not hide) end
-    end
+    ns:SyncEditBox(min)
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
@@ -1533,13 +1549,19 @@ local function Build()
     -- Typing (Enter) while minimized / hidden opens the phone.
     local e = EditBox()
     if e and e.HookScript then
+        -- Typing (Enter, "/", "r"...) never restores a minimized phone: the box shows
+        -- over the header while typing and goes away after sending / Escape.
         local function Typing()
             if not ns.docked then return end
             if not phone:IsShown() then phone:Show() end
-            if settings.min and not ns.peek then ns:Minimize(false) end
+            Safe(ns.SyncEditBox, ns)
         end
         e:HookScript("OnShow", Typing)
         e:HookScript("OnEditFocusGained", Typing) -- box always shown (chat style): Enter only focuses it
+        e:HookScript("OnEditFocusLost", function()
+            if ns.docked and C_Timer and C_Timer.After then C_Timer.After(0, function() Safe(ns.SyncEditBox, ns) end)
+            elseif ns.docked then Safe(ns.SyncEditBox, ns) end
+        end)
     end
     if hooksecurefunc and FCF_OpenTemporaryWindow then
         hooksecurefunc("FCF_OpenTemporaryWindow", function() if ns.replacing then ParkAll() end end)
