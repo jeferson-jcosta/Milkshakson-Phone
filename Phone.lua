@@ -470,6 +470,14 @@ local function RowMenu(owner, c)
     if MenuUtil and MenuUtil.CreateContextMenu then
         MenuUtil.CreateContextMenu(owner, function(_, root)
             root:CreateTitle(Title(c))
+            if c.kind == "whisper" and c.target then
+                for _, a in ipairs(ns.ACTIONS) do
+                    if a[1] ~= "WHISPER" and (not a[3] or a[3]()) then
+                        root:CreateButton(L["ACT_" .. a[1]], function() Safe(a[2], c.target) end)
+                    end
+                end
+                root:CreateDivider()
+            end
             root:CreateButton(c.pinned and L.UNPIN or L.PIN, function() Store:SetPinned(c.key, not c.pinned) end)
             root:CreateButton(c.muted and L.UNMUTE or L.MUTE, function() Store:SetMuted(c.key, not c.muted) end)
             if c.kind == "channel" then
@@ -604,25 +612,64 @@ function ns:Whisper(full)
     ns:Compose()
 end
 
--- The game's player menu (whisper, invite, add friend, ignore, report...).
-local function PlayerMenu(link, text, button)
+-- The game's own player menu (fallback / "more" entry).
+local function GameMenu(link, text, button)
     if SetItemRef then SetItemRef(link, text or link, button or "RightButton", ChatFrame1) end
 end
-ns.PlayerMenu = PlayerMenu
+ns.GameMenu = GameMenu
+
+-- Player actions, all with the game API (the click is the player's).
+local function Call(f, ...) if type(f) == "function" then return pcall(f, ...) end end
+ns.ACTIONS = {
+    { "WHISPER", function(n) ns:Whisper(n) end },
+    { "INVITE", function(n) Call((C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit, n) end },
+    { "GUILD_INVITE", function(n) Call((C_GuildInfo and C_GuildInfo.Invite) or GuildInvite, n) end,
+        function() return IsInGuild and IsInGuild() and (not CanGuildInvite or CanGuildInvite()) end },
+    { "ADD_FRIEND", function(n) Call(C_FriendList and C_FriendList.AddFriend or AddFriend, n) end },
+    { "WHO", function(n) Call(C_FriendList and C_FriendList.SendWho or SendWho, 'n-"' .. n .. '"') end },
+    { "COPY_NAME", function(n) if MilkshaksonUI then MilkshaksonUI:CopyLink(n, n) end end },
+    { "IGNORE", function(n) Call(C_FriendList and C_FriendList.AddIgnore or AddIgnore, n) end },
+}
+
+-- Right-click on a player (bubble, name or private chat): the actions of the
+-- game's chat menu, plus the game's own menu at the end.
+function ns:PlayerMenu(owner, full, line)
+    if not full or full == "" then return end
+    local short = (Ambiguate and Ambiguate(full, "short")) or full:gsub("%-.*$", "")
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        GameMenu("player:" .. full .. (line and (":" .. line) or ""), short, "RightButton")
+        return
+    end
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle(short)
+        for _, a in ipairs(ns.ACTIONS) do
+            if not a[3] or a[3]() then
+                root:CreateButton(L["ACT_" .. a[1]], function() Safe(a[2], full) end)
+            end
+        end
+        root:CreateButton(L.ACT_MORE, function()
+            Safe(GameMenu, "player:" .. full .. (line and (":" .. line) or ""), short, "RightButton")
+        end)
+    end)
+end
 
 -- Click on a link in a bubble. Player name: left = private chat on the phone,
 -- right = game's player menu, shift / ctrl = the game's own behavior (/who...).
 function ns:OnLink(link, text, button)
     local kind, rest = (link or ""):match("^(%a+):(.*)$")
     if kind == "player" then
-        local name = rest:match("^([^:]+)")
+        local name, line = rest:match("^([^:]+):?(%d*)")
         local mod = (IsShiftKeyDown and IsShiftKeyDown()) or (IsControlKeyDown and IsControlKeyDown()) or (IsAltKeyDown and IsAltKeyDown())
+        if button == "RightButton" then
+            ns:PlayerMenu(ns.linkOwner, name, tonumber(line))
+            return
+        end
         if button == "LeftButton" and not mod then
             ns:Whisper(name)
             return
         end
     end
-    PlayerMenu(link, text, button)
+    GameMenu(link, text, button)
 end
 
 local function Bubble(i)
@@ -635,12 +682,21 @@ local function Bubble(i)
     b.text = Font(b, "GameFontHighlight", COL.text)
     b.time = Font(b, "GameFontHighlightSmall", COL.sub, "RIGHT")
     b.time:SetPoint("BOTTOMRIGHT", -7, 4)
+    b:EnableMouse(true)
     if b.SetHyperlinksEnabled then
         b:SetHyperlinksEnabled(true)
-        b:SetScript("OnHyperlinkClick", function(_, link, text, button)
+        b:SetScript("OnHyperlinkClick", function(self, link, text, button)
+            ns.linkOwner = self
             Safe(ns.OnLink, ns, link, text, button)
         end)
     end
+    -- right-click anywhere on a message from another player: player menu
+    b:SetScript("OnMouseUp", function(self, button)
+        local m = self.msg
+        if button == "RightButton" and m and not m.out and m.full then
+            Safe(ns.PlayerMenu, ns, self, m.full, m.line)
+        end
+    end)
     bubbles[i] = b
     return b
 end
@@ -745,6 +801,7 @@ local function PlaceMsg(c, m, maxW, group)
             b:SetPoint("TOPLEFT", chatContent, "TOPLEFT", 8, -view.y)
         end
     end
+    b.msg = m
     b:SetSize(w, h)
     b:Show()
     view.y = view.y + h + 5
@@ -1041,7 +1098,7 @@ local function Build()
     who:SetScript("OnClick", function(self, button)
         local c = Store:Get(openKey)
         if c and c.kind == "whisper" and c.target then
-            Safe(PlayerMenu, "player:" .. c.target, c.target, "RightButton")
+            Safe(ns.PlayerMenu, ns, self, c.target)
         end
     end)
     who:SetScript("OnEnter", function(self)

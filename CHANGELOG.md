@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Players in the chat: the sender's name in a bubble is the game's player link. Left-click opens a private chat with them on the phone; right-click opens the game's player menu (whisper, invite, add friend, ignore, report...); shift-click does what the game does (/who). The name at the top of a private chat opens the same menu.
+- Players in the chat: right-click a message (or the name) from another player for a menu like the default chat's: Whisper, Invite to group, Invite to guild (if you can), Add friend, Who (/who), Copy name, Ignore, and the game's own menu. Left-click the name: private chat on the phone. Same actions on the name at the top of a private chat and on right-click of a private chat in the list.
 - Channels other addons use only to send data (HarvestMate) are hidden. Right-click a channel: Hide this channel (`/ph show channels` brings them back).
 - Auto-join never touches channels in combat (the game may block the addon); it waits for the end of the fight.
 - Icons: Trade channels a coin, LocalDefense a sword, General a map, Nearby a group of people (NPCs got their own icon).
