@@ -12,7 +12,8 @@ S.DEFAULTS = {
     autoJoin = true,      -- join General / Trade / LocalDefense on login and zone change
     showSystem = true,    -- system messages kept in the System chat (loot, XP, crafting...)
     showNPC = true,       -- NPC messages kept in the System chat too
-    monitorSystem = false, -- System chat shows no badge / last message unless monitored
+    monitorSystem = false,
+    hoverExpand = true,   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
     typeColors = true,    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,

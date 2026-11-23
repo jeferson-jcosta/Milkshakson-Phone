@@ -953,7 +953,7 @@ end
 ---------------------------------------------------------------------------
 function ns:Layout()
     if not phone then return end
-    local min = settings.min
+    local min = settings.min and not ns.peek -- peek: minimized, opened by the mouse
     local inChat = openKey ~= nil and not min
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     listView:ClearAllPoints()
@@ -1036,7 +1036,7 @@ local function Pill(i)
 end
 
 local function UpdatePills()
-    local list = settings.min and ns:MiniCounts() or {}
+    local list = (settings.min and not ns.peek) and ns:MiniCounts() or {}
     local prev
     for i, x in ipairs(list) do
         local b = Pill(i)
@@ -1065,7 +1065,7 @@ local pending
 local function DoRefresh(_, key)
     if not phone then return end
     UpdateTitle()
-    if not phone:IsShown() or settings.min then return end -- drawn when shown again
+    if not phone:IsShown() or (settings.min and not ns.peek) then return end -- drawn when shown again
     RenderList()
     if openKey and (key == nil or key == openKey) then
         if not Store:Get(openKey) then ns:CloseChat() else RenderChat() end
@@ -1082,7 +1082,7 @@ end
 local function DoOpen(_, key)
     openKey = key
     settings.lastOpen = key
-    settings.min = false
+    if not ns.peek then settings.min = false end -- opened by the mouse: stays a peek
     Store:Read(key)
     local c = Store:Get(key)
     if c then ns:SetSticky(c) end
@@ -1131,16 +1131,65 @@ function ns:Back()
 end
 
 function ns:IsOpen(key)
-    return phone and phone:IsShown() and not settings.min and openKey == key
+    return phone and phone:IsShown() and (not settings.min or ns.peek) and openKey == key
 end
 
 function ns:Minimize(v)
+    if ns.peek then -- "_" while opened by the mouse: back to minimized
+        ns.peek = false
+        ns.holdPeek = true -- not again until the mouse leaves
+        settings.min = true
+        ns:Layout()
+        UpdatePills()
+        return
+    end
     if v == nil then v = not settings.min end
     settings.min = v and true or false
     ns:Layout()
     UpdatePills()
     if not v then ns:Refresh() end
 end
+
+-- Minimized + option: the mouse over the phone opens it, leaving closes it again
+-- (not while typing or with a menu open). Polled: child frames eat OnEnter/OnLeave.
+local hover = CreateFrame("Frame")
+local acc, outFor = 0, 0
+local function MenuOpen()
+    if Menu and Menu.GetManager then
+        local ok, m = pcall(function() return Menu.GetManager():GetOpenMenu() end)
+        return ok and m ~= nil
+    end
+end
+function ns:HoverTick(dt)
+    if not phone then return end
+    if not (settings.min and settings.hoverExpand and phone:IsShown()) then
+        if ns.peek then ns.peek = false; ns:Layout() end
+        return
+    end
+    local over = MouseIsOver and MouseIsOver(phone)
+    if not over then ns.holdPeek = nil end
+    if over then
+        outFor = 0
+        if not ns.peek and not ns.holdPeek then ns.peek = true; ns:Layout(); ns:Refresh() end
+    elseif ns.peek then
+        local e = EditBox()
+        if (e and e.HasFocus and e:HasFocus()) or MenuOpen() then outFor = 0 return end
+        outFor = outFor + dt
+        if outFor >= 0.5 then
+            outFor = 0
+            ns.peek = false
+            ns:Layout()
+            UpdateTitle()
+        end
+    end
+end
+hover:SetScript("OnUpdate", function(_, elapsed)
+    acc = acc + elapsed
+    if acc < 0.1 then return end
+    local dt = acc
+    acc = 0
+    Safe(ns.HoverTick, ns, dt)
+end)
 
 function ns:Toggle()
     if settings.replaceChat then
@@ -1342,7 +1391,7 @@ local function Build()
         e:HookScript("OnShow", function()
             if not ns.docked then return end
             if not phone:IsShown() then phone:Show() end
-            if settings.min then ns:Minimize(false) end
+            if settings.min and not ns.peek then ns:Minimize(false) end
         end)
     end
     if hooksecurefunc and FCF_OpenTemporaryWindow then
