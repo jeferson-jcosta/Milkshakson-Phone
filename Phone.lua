@@ -8,7 +8,7 @@ local Store, Route = ns.Store, ns.Route
 local PREFIX = "|cff25d366[Phone]|r "
 local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
-local STATUS_H, HEAD_H, INPUT_H, ROW_H = 18, 42, 30, 52
+local STATUS_H, HEAD_H, INPUT_H, ROW_H, RAIL_W, RAIL_ROW = 18, 42, 30, 52, 86, 34
 local SHOW_MSGS = 120
 
 -- Dark messenger palette.
@@ -33,6 +33,8 @@ local phone, clockText, zoneText, banner, grip
 local listView, listTitle, listScroll, listContent, emptyText
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
 local inputBar, inputText
+local rail, railScroll, railContent
+local railRows = {}
 local rows, bubbles, seps = {}, {}, {}
 local openKey
 
@@ -283,6 +285,47 @@ function ns:Unblock()
 end
 
 ---------------------------------------------------------------------------
+-- Fixed conversations (party / guild on top) and joined channels
+---------------------------------------------------------------------------
+local function TopKeys()
+    local t = {}
+    if IsInRaid and IsInRaid() then t[#t + 1] = "raid"
+    elseif IsInGroup and IsInGroup() then t[#t + 1] = "party" end
+    if IsInGuild and IsInGuild() then t[#t + 1] = "guild" end
+    for _, k in ipairs(t) do Store:Ensure(k, k) end
+    return t
+end
+ns.TopKeys = TopKeys
+
+local function ChanKey(name) return "c:" .. name:lower() end
+
+-- Channels the character is in (GetChannelList: id, name, disabled, ...),
+-- then channel conversations with messages that are not joined now.
+local function Channels()
+    local t, seen = {}, {}
+    if GetChannelList then
+        local list = { GetChannelList() }
+        for i = 1, #list, 3 do
+            local id, name = list[i], list[i + 1]
+            if type(name) == "string" and name ~= "" then
+                name = name:match("^(.-) %- ") or name
+                local c = Store:Ensure(ChanKey(name), "channel", name)
+                c.chan = tonumber(id) or c.chan
+                if not seen[c.key] then seen[c.key] = true; t[#t + 1] = { conv = c, joined = true } end
+            end
+        end
+    end
+    local rest = {}
+    for _, c in pairs(Store:Char().convs) do
+        if c.kind == "channel" and not seen[c.key] and #c.msgs > 0 then rest[#rest + 1] = { conv = c } end
+    end
+    table.sort(rest, function(a, b) return a.conv.key < b.conv.key end)
+    for _, x in ipairs(rest) do t[#t + 1] = x end
+    return t
+end
+ns.Channels = Channels
+
+---------------------------------------------------------------------------
 -- List view
 ---------------------------------------------------------------------------
 local function RowMenu(owner, c)
@@ -343,7 +386,7 @@ local function Row(i)
 end
 
 local function RenderList()
-    local list = Store:List()
+    local list = Store:List(TopKeys(), settings.rail)
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -356,7 +399,7 @@ local function RenderList()
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
         r.time:SetText(m and ListTime(m.t) or "")
-        r.prev:SetText(m and Preview(c, m) or "")
+        r.prev:SetText(m and Preview(c, m) or L.NO_MSGS)
         local n = c.unread or 0
         if n > 0 and not c.muted then
             r.badge.n:SetText(n > 99 and "99+" or tostring(n))
@@ -374,6 +417,60 @@ local function RenderList()
     emptyText:SetShown(#list == 0)
     return #list
 end
+
+---------------------------------------------------------------------------
+-- Side bar: channels
+---------------------------------------------------------------------------
+local function RailRow(i)
+    if railRows[i] then return railRows[i] end
+    local r = CreateFrame("Button", nil, railContent)
+    r:SetHeight(RAIL_ROW)
+    r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    r.sel = Tex(r, "BACKGROUND", COL.head)
+    r.sel:SetAllPoints()
+    local hl = r:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.06)
+    r.name = Font(r, "GameFontHighlightSmall", COL.text)
+    r.name:SetPoint("TOPLEFT", 8, -5)
+    r.name:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+    r.name:SetWordWrap(false)
+    r.num = Font(r, "GameFontDisableSmall", COL.sub)
+    r.num:SetPoint("BOTTOMLEFT", 8, 4)
+    r.badge = Font(r, "GameFontHighlightSmall", COL.accent, "RIGHT")
+    r.badge:SetPoint("BOTTOMRIGHT", -6, 4)
+    r:SetScript("OnClick", function(self, btn)
+        if btn == "RightButton" then RowMenu(self, self.conv) else ns:Open(self.conv.key) end
+    end)
+    railRows[i] = r
+    return r
+end
+
+local function RenderRail()
+    if not (settings.rail and rail:IsShown()) then return 0 end
+    local list = Channels()
+    for i, x in ipairs(list) do
+        local r, c = RailRow(i), x.conv
+        r.conv = c
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", railContent, "TOPLEFT", 0, -(i - 1) * (RAIL_ROW + 2))
+        r:SetPoint("RIGHT", railContent, "RIGHT")
+        r.sel:SetShown(openKey == c.key)
+        r.name:SetText(c.name or "?")
+        local t = x.joined and COL.text or COL.sub
+        r.name:SetTextColor(t[1], t[2], t[3])
+        r.num:SetText(c.chan and x.joined and ("/" .. c.chan) or "")
+        local n = c.muted and (c.unseen or 0) or (c.unread or 0)
+        local bc = c.muted and COL.sub or COL.accent
+        r.badge:SetTextColor(bc[1], bc[2], bc[3])
+        r.badge:SetText(n > 0 and (n > 99 and "99+" or tostring(n)) or "")
+        r:Show()
+    end
+    for i = #list + 1, #railRows do railRows[i]:Hide() end
+    railContent:SetHeight(math.max(1, #list * (RAIL_ROW + 2)))
+    return #list
+end
+ns.RenderRail = RenderRail
 
 ---------------------------------------------------------------------------
 -- Conversation view
@@ -520,6 +617,14 @@ function ns:Layout()
     if not phone then return end
     local min = settings.min
     local inChat = openKey ~= nil and not min
+    local showRail = settings.rail and not min
+    rail:SetShown(showRail)
+    local left = showRail and RAIL_W or 0
+    for _, v in ipairs({ listView, chatView }) do
+        v:ClearAllPoints()
+        v:SetPoint("TOPLEFT", phone, "TOPLEFT", left, -STATUS_H)
+        v:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
+    end
     listView:SetShown(not inChat)
     listScroll:SetShown(not min)
     chatView:SetShown(inChat)
@@ -546,6 +651,7 @@ function ns:Refresh(key)
     if not phone then return end
     UpdateTitle()
     RenderList()
+    RenderRail()
     if openKey and (key == nil or key == openKey) then
         if not Store:Get(openKey) then openKey = nil; ns:Layout() else RenderChat() end
     end
@@ -567,6 +673,8 @@ function ns:Open(key)
     ns:Layout()
     RenderChat(true)
     UpdateTitle()
+    RenderList()
+    RenderRail()
 end
 
 function ns:Back()
@@ -660,6 +768,30 @@ local function Build()
     zoneText:SetPoint("RIGHT", -10, 0)
     zoneText:SetPoint("LEFT", clockText, "RIGHT", 10, 0)
     zoneText:SetWordWrap(false)
+
+    -- Left: channels.
+    rail = CreateFrame("Frame", nil, phone)
+    rail:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
+    rail:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
+    rail:SetWidth(RAIL_W)
+    Tex(rail, "BACKGROUND", COL.status, 0.9):SetAllPoints()
+    local rh = CreateFrame("Frame", nil, rail)
+    rh:SetPoint("TOPLEFT")
+    rh:SetPoint("TOPRIGHT")
+    rh:SetHeight(HEAD_H)
+    Tex(rh, "BACKGROUND", COL.head):SetAllPoints()
+    Drag(rh)
+    local rt = Font(rh, "GameFontNormal", COL.sub)
+    rt:SetPoint("LEFT", 8, 0)
+    rt:SetText(L.CHANNELS)
+    rail.title = rt
+    local line = Tex(rail, "BORDER", COL.sep)
+    line:SetWidth(1)
+    line:SetPoint("TOPRIGHT")
+    line:SetPoint("BOTTOMRIGHT")
+    railScroll, railContent = Scroller(rail)
+    railScroll:SetPoint("TOPLEFT", rh, "BOTTOMLEFT", 0, -2)
+    railScroll:SetPoint("BOTTOMRIGHT", -1, 0)
 
     -- Bottom: the bar the game's edit box sits on.
     inputBar = CreateFrame("Button", nil, phone)
@@ -767,7 +899,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
+    "C_BattleNet.GetAccountInfoByID", "GetChannelList", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc",
 }
 
 local function Lookup(path)
@@ -831,7 +963,8 @@ ev:SetScript("OnEvent", function(self, event, ...)
         Store:OnChange(function(key) ns:Refresh(key) end)
         for _, e in ipairs(Route.EVENTS) do pcall(chat.RegisterEvent, chat, e) end
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
-            "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END" }) do
+            "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
+            "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE" }) do
             pcall(self.RegisterEvent, self, e)
         end
         ns:BuildOptions(settings)
@@ -848,6 +981,9 @@ ev:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
         ns:Unblock()
         UpdateStatus()
+        if event == "ZONE_CHANGED_NEW_AREA" then Later() end
+    elseif event == "CHANNEL_UI_UPDATE" or event == "CHAT_MSG_CHANNEL_NOTICE" or event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_GUILD_UPDATE" then
+        Later()
     else
         UpdateStatus()
     end
@@ -907,6 +1043,7 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
             end
         end
         emptyText:SetText(L.EMPTY)
+        rail.title:SetText(L.CHANNELS)
         ns:Layout()
         ns:Refresh()
     else
