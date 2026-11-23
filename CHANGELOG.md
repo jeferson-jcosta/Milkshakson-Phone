@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Minimized: a click on the "Chats" header restores the phone (dragging it still moves it).
 - Typing while minimized (Enter, "/" for a command, "r" to reply) no longer restores the phone: the typing box shows over the header while you type and goes away after sending or Escape.
 
 ## 0.2.1

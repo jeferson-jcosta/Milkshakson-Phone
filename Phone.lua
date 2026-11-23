@@ -1386,20 +1386,31 @@ ns.Place = Place
 ---------------------------------------------------------------------------
 -- Build
 ---------------------------------------------------------------------------
-local function Drag(f)
+-- onClick: a left click that was not a drag.
+local function Drag(f, onClick)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function() if not settings.locked then phone:StartMoving() end end)
+    f:SetScript("OnDragStart", function(self)
+        self.dragged = true
+        if not settings.locked then phone:StartMoving() end
+    end)
     f:SetScript("OnDragStop", function() phone:StopMovingOrSizing(); SavePoint() end)
+    if onClick then
+        f:SetScript("OnMouseDown", function(self) self.dragged = false end)
+        f:SetScript("OnMouseUp", function(self, button)
+            if button == "LeftButton" and not self.dragged then Safe(onClick) end
+            self.dragged = false
+        end)
+    end
 end
 
-local function Header(parent)
+local function Header(parent, onClick)
     local h = CreateFrame("Frame", nil, parent)
     h:SetPoint("TOPLEFT")
     h:SetPoint("TOPRIGHT")
     h:SetHeight(HEAD_H)
     Tex(h, "BACKGROUND", COL.head):SetAllPoints()
-    Drag(h)
+    Drag(h, onClick)
     return h
 end
 
@@ -1443,7 +1454,13 @@ local function Build()
     listView = CreateFrame("Frame", nil, phone)
     listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
-    local lh = Header(listView)
+    -- minimized: a click on "Chats" restores the phone
+    local lh = Header(listView, function()
+        if settings.min then
+            ns.peek = false
+            ns:Minimize(false)
+        end
+    end)
     listHead = lh
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
     listTitle:SetPoint("LEFT", 12, 0)
