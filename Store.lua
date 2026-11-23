@@ -10,8 +10,9 @@ S.DEFAULTS = {
     muteChannels = true,  -- new public channels (Trade, General...) start muted
     muteSystem = true,    -- System / NPC conversations start muted
     autoJoin = true,      -- join General / Trade / LocalDefense on login and zone change
-    showSystem = false,   -- System conversation (loot, XP, crafting...) off by default
-    showNPC = false,      -- NPCs conversation off by default
+    showSystem = true,    -- system messages kept in the System chat (loot, XP, crafting...)
+    showNPC = true,       -- NPC messages kept in the System chat too
+    monitorSystem = false, -- System chat shows no badge / last message unless monitored
     typeColors = true,    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,
@@ -24,6 +25,10 @@ function S:Init()
     local db = MilkshaksonPhoneDB
     if (tonumber(db.w) or 0) < 500 then db.w = 560 end -- two panes need the room
     for k, v in pairs(S.DEFAULTS) do if db[k] == nil then db[k] = v end end
+    if not db.v2 then -- 2026-11-23: System + NPCs grouped in one quiet chat, kept by default
+        db.v2 = true
+        db.showSystem, db.showNPC = true, true
+    end
     MilkshaksonPhoneCharDB = type(MilkshaksonPhoneCharDB) == "table" and MilkshaksonPhoneCharDB or {}
     local c = MilkshaksonPhoneCharDB
     c.v = 1

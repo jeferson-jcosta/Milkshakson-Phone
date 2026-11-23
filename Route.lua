@@ -105,10 +105,14 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
     if not kind then return nil end
     if kind == "system" then
         msg.info = true
+    elseif kind == "npc" then
+        -- NPCs share the System conversation; their name is not a player
+        msg.from, msg.full, msg.line, msg.npc = who, nil, nil, true
+        return { key = "system", kind = "system", msg = msg }
     else
         msg.from = who
         msg.out = (who ~= nil and who == me) or nil
-        if kind ~= "npc" then msg.cls = Class(guid) end
+        msg.cls = Class(guid)
     end
     return { key = kind, kind = kind, msg = msg }
 end

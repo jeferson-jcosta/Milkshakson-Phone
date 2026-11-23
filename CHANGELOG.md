@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- System and NPC messages grouped in one chat, "System & NPCs", always last in the list and quiet: no unread count and no last message, open it to read. Option "Monitor the System chat" (off by default) shows the count and last message. Both kept by default again (each can be switched off); a new message in the quiet chat redraws nothing while it is closed.
 - Who (/who) shows the answer on the phone (name, level, race, class, zone, guild).
 - "More (game menu)" opens the game's player menu with this client's menu API (UnitPopup), with the older ones as fallback.
 - Player actions that fail show the error on the phone instead of doing nothing.
@@ -10,7 +11,7 @@
 - Channels other addons use only to send data (HarvestMate) are hidden. Right-click a channel: Hide this channel (`/ph show channels` brings them back).
 - Auto-join never touches channels in combat (the game may block the addon); it waits for the end of the fight.
 - Icons: Trade channels a coin, LocalDefense a sword, General a map, Nearby a group of people (NPCs got their own icon).
-- Filters (options): show system messages (off by default), show the NPCs chat (off by default). When off they are not kept at all.
+- Filters (options): keep system messages / NPC messages (when off they are not kept at all).
 - Text colors by chat type (on by default): guild green, party blue, raid orange, whispers pink... taken from the game's own chat colors.
 - Performance: redraws are grouped (at most ~4 per second, however busy the chat is); a new message only adds its bubble; the open chat draws its last 50 messages and loads 50 more when you scroll to the top; nothing is drawn while the phone is minimized or hidden.
 - Fix: nothing was drawn (list rows and messages) — on WoW: Forever a masked icon can't be cropped (SetTexCoord error). Icons are no longer masked.

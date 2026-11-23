@@ -8,7 +8,8 @@ Your chat as a **phone messenger**. Instead of one stream mixing whispers, guild
 - **Chats list**: one line per conversation with the last message, the time and an unread badge. Newest first; pin the ones you care about to the top.
 - **Conversation**: bubbles (yours on the right, theirs on the left), sender name in group chats (class color), time on each message, day separators (Today, Yesterday, date). Item / quest links stay clickable.
 - **Replaces the game's chat** (on by default): the game's chat windows are hidden and the typing box sits on the phone. Open a conversation and press Enter, or click the bottom bar: you type straight to that player / group / channel. Slash commands work as usual.
-- **Filters**: system messages and the NPCs chat are off by default (not kept). Text colored by chat type (guild green, party blue...), using the game's chat colors.
+- **System & NPCs** in one quiet chat at the end of the list (no badge, no last message; option to monitor it). Each can be switched off.
+Text colored by chat type (guild green, party blue...), using the game's chat colors.
 - **Players**: right-click a message for whisper, invite to group / guild, add friend, /who, copy name, ignore (and the game's own menu). Click a name to talk to them privately.
 - Public channels (Trade, General...) start **muted** (grey count instead of a green badge). Right-click a chat: pin, mute, clear, delete.
 - History per character, kept between sessions.

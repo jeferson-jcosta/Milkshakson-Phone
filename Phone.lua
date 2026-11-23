@@ -373,8 +373,13 @@ end
 ---------------------------------------------------------------------------
 -- Conversations switched off in the options (not stored, not listed).
 local function HiddenKinds()
-    return { system = not settings.showSystem or nil, npc = not settings.showNPC or nil }
+    -- npc: older separate NPC chat (NPCs now go to System); system: listed apart, at the end
+    return { system = true, npc = true }
 end
+
+-- System (+ NPCs): quiet unless monitored — no badge, no last message.
+local function Quiet(c) return c and c.kind == "system" and not settings.monitorSystem end
+ns.Quiet = Quiet
 ns.HiddenKinds = HiddenKinds
 
 local function TopKeys()
@@ -565,6 +570,9 @@ local function RenderList()
     for _, c in ipairs(Store:List(TopKeys(), HiddenKinds())) do
         if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then list[#list + 1] = c end
     end
+    if settings.showSystem or settings.showNPC then -- always last
+        list[#list + 1] = Store:Ensure("system", "system")
+    end
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -576,11 +584,13 @@ local function RenderList()
         local cc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.text
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
+        local quiet = Quiet(c)
+        if quiet then m = nil end
         r.time:SetText(m and ListTime(m.t) or "")
-        r.prev:SetText(m and Preview(c, m) or L.NO_MSGS)
+        r.prev:SetText(m and Preview(c, m) or (quiet and L.QUIET or L.NO_MSGS))
         local pc = TypeColor(m, c) or COL.sub
         r.prev:SetTextColor(pc[1], pc[2], pc[3])
-        local n = c.muted and (c.unseen or 0) or (c.unread or 0)
+        local n = quiet and 0 or (c.muted and (c.unseen or 0) or (c.unread or 0))
         r.sel:SetShown(openKey == c.key)
         if n > 0 then
             r.badge.n:SetText(n > 99 and "99+" or tostring(n))
@@ -605,7 +615,7 @@ end
 ---------------------------------------------------------------------------
 -- Sender name as the game's player link: |Hplayer:Name-Realm:lineID|h Name |h
 local function PlayerLink(m)
-    if m.out or not m.from then return m.from or "" end
+    if m.out or not m.from or m.npc then return m.from or "" end
     return "|Hplayer:" .. (m.full or m.from) .. (m.line and (":" .. m.line) or "") .. "|h" .. m.from .. "|h"
 end
 ns.PlayerLink = PlayerLink
@@ -762,7 +772,7 @@ local function Bubble(i)
     -- right-click anywhere on a message from another player: player menu
     b:SetScript("OnMouseUp", function(self, button)
         local m = self.msg
-        local who = m and not m.out and not m.info and (m.full or m.from) -- older messages have no full name
+        local who = m and not m.out and not m.info and not m.npc and (m.full or m.from) -- older messages have no full name
         settings.lastClick = { button = tostring(button), who = who or "-", menu = (MenuUtil and MenuUtil.CreateContextMenu) and "yes" or "no" }
         if button == "RightButton" and who then
             Safe(ns.PlayerMenu, ns, self, who, m.line, m.ev)
@@ -971,7 +981,7 @@ function ns:Layout()
 end
 
 local function UpdateTitle()
-    local n = Store:Unread(HiddenKinds())
+    local n = Store:Unread({ npc = true, system = not settings.monitorSystem or nil })
     listTitle:SetText(n > 0 and L.CHATS_N:format(n) or L.CHATS)
 end
 
@@ -1312,7 +1322,7 @@ chat:SetScript("OnEvent", function(_, event, ...)
         if why == "secret" then ns:Blocked(event) end
         return
     end
-    if (r.kind == "system" and not settings.showSystem) or (r.kind == "npc" and not settings.showNPC) then return end
+    if r.kind == "system" and not (r.msg.npc and settings.showNPC or (not r.msg.npc and settings.showSystem)) then return end
     Safe(Store.Add, Store, r, ns:IsOpen(r.key))
 end)
 
@@ -1334,7 +1344,11 @@ local function OnEvent(self, event, ...)
             timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
             OnAccept = function() openKey = nil; Store:Clear(); ns:Layout(); print(PREFIX .. L.CLEARED) end,
         }
-        Store:OnChange(function() Later() end) -- many messages per second become one redraw
+        Store:OnChange(function(key)
+            -- many messages per second become one redraw; the quiet System chat redraws nothing while closed
+            if key == "system" and key ~= openKey and Quiet(Store:Get(key)) then return end
+            Later()
+        end)
         for _, e in ipairs(Route.EVENTS) do pcall(chat.RegisterEvent, chat, e) end
         pcall(chat.RegisterEvent, chat, "WHO_LIST_UPDATE")
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
