@@ -65,8 +65,17 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
     local t = (event or ""):gsub("^CHAT_MSG_", "")
     if R.Secret(text, sender, guid, chanIndex) then return nil, "secret" end
     local me = UnitName and UnitName("player")
+    -- Is the sender me? By GUID: on Forever names have a last name ("First Last"),
+    -- and UnitName("player") may not match the name the chat sends.
+    local myGuid = UnitGUID and UnitGUID("player")
+    local function Mine(who)
+        if not who then return false end
+        if myGuid and type(guid) == "string" and guid ~= "" then return guid == myGuid end
+        return who == me or (R.myName ~= nil and who == R.myName)
+    end
     local msg = { t = time(), text = text or "", ev = t, tag = TAG[t], info = INFO[t] }
     local who = Short(sender)
+    if who and myGuid and guid == myGuid then R.myName = who end -- my name as the chat writes it
     -- full name + line id: what the game's player menu needs (whisper, invite, report...)
     msg.full = Full(sender)
     msg.line = tonumber(lineID)
@@ -96,7 +105,7 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
         local base = (type(chanBase) == "string" and chanBase ~= "" and chanBase) or chanName or "?"
         base = base:match("^(.-) %- ") or base -- "Trade - City" -> "Trade"
         msg.from = who
-        msg.out = (who ~= nil and who == me) or nil
+        msg.out = Mine(who) or nil
         msg.cls = Class(guid)
         return { key = "c:" .. base:lower(), kind = "channel", name = base, chan = tonumber(chanIndex), msg = msg }
     end
@@ -111,7 +120,7 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
         return { key = "system", kind = "system", msg = msg }
     else
         msg.from = who
-        msg.out = (who ~= nil and who == me) or nil
+        msg.out = Mine(who) or nil
         msg.cls = Class(guid)
     end
     return { key = kind, kind = kind, msg = msg }

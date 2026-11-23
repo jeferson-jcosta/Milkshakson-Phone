@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Fix: your own messages in channels, guild and group showed as someone else's (left side, with your name). On Forever names have a last name, so you are now recognized by your GUID; old saved messages are fixed by your full name.
 - Option: message alignment - Messenger (yours on the right, default), All on the left, All on the right. Your bubbles stay green.
 - Option: font size of the phone (0.80x - 1.60x of the game's size), for every text; list rows grow with it; applied at once.
 - Minimized: a click on the "Chats" header restores the phone (dragging it still moves it).

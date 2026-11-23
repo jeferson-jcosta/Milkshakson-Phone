@@ -219,9 +219,17 @@ local function Body(m)
     return s
 end
 
+-- Mine: marked when received, or (older messages) from my name as the chat writes it.
+local function IsMine(m)
+    if m.out then return true end
+    local me = Route.myName or (Store:Char() and Store:Char().me)
+    return me ~= nil and m.from == me and not m.npc
+end
+ns.IsMine = IsMine
+
 local function Preview(c, m)
     local s = OneLine(Body(m))
-    if m.out then return L.YOU .. ": " .. s end
+    if IsMine(m) then return L.YOU .. ": " .. s end
     if IsGroup(c.kind) and m.from and not m.info then return m.from .. ": " .. s end
     return s
 end
@@ -710,7 +718,7 @@ end
 ---------------------------------------------------------------------------
 -- Sender name as the game's player link: |Hplayer:Name-Realm:lineID|h Name |h
 local function PlayerLink(m)
-    if m.out or not m.from or m.npc then return m.from or "" end
+    if IsMine(m) or not m.from or m.npc then return m.from or "" end
     return "|Hplayer:" .. (m.full or m.from) .. (m.line and (":" .. m.line) or "") .. "|h" .. m.from .. "|h"
 end
 ns.PlayerLink = PlayerLink
@@ -867,7 +875,7 @@ local function Bubble(i)
     -- right-click anywhere on a message from another player: player menu
     b:SetScript("OnMouseUp", function(self, button)
         local m = self.msg
-        local who = m and not m.out and not m.info and not m.npc and (m.full or m.from) -- older messages have no full name
+        local who = m and not IsMine(m) and not m.info and not m.npc and (m.full or m.from) -- older messages have no full name
         settings.lastClick = { button = tostring(button), who = who or "-", menu = (MenuUtil and MenuUtil.CreateContextMenu) and "yes" or "no" }
         if button == "RightButton" and who then
             Safe(ns.PlayerMenu, ns, self, who, m.line, m.ev)
@@ -952,12 +960,13 @@ local function PlaceMsg(c, m, maxW, group)
         w, h = tw + 18, Num(b.text:GetStringHeight(), 14) + 10
         b:SetPoint("TOP", chatContent, "TOP", 0, -view.y)
     else
-        local t = m.out and COL.outB or COL.inB
+        local mine = IsMine(m)
+        local t = mine and COL.outB or COL.inB
         b.bg:SetColorTexture(t[1], t[2], t[3], 1)
         local fc = tc or COL.text
         b.text:SetTextColor(fc[1], fc[2], fc[3])
         b.text:SetJustifyH("LEFT")
-        local showName = group and not m.out and m.from
+        local showName = group and not mine and m.from
         local nw = 0
         if showName then
             local nc = ClassColor(m.cls) or COL.accent
@@ -977,7 +986,7 @@ local function PlaceMsg(c, m, maxW, group)
         w, h = inner + 18, top + Num(b.text:GetStringHeight(), 14) + 17
         -- alignment option: "messenger" (yours right), "left" (all left), "right" (all right)
         local align = settings.align or "messenger"
-        local right = (align == "right") or (align == "messenger" and m.out)
+        local right = (align == "right") or (align == "messenger" and mine)
         if right then
             b:SetPoint("TOPRIGHT", chatContent, "TOPRIGHT", -8, -view.y)
         else
@@ -1698,6 +1707,7 @@ chat:SetScript("OnEvent", function(_, event, ...)
         return
     end
     if r.kind == "system" and not (r.msg.npc and settings.showNPC or (not r.msg.npc and settings.showSystem)) then return end
+    if Route.myName and Store:Char().me ~= Route.myName then Store:Char().me = Route.myName; view.key = nil end
     Safe(Store.Add, Store, r, ns:IsOpen(r.key))
 end)
 
@@ -1741,6 +1751,14 @@ local function OnEvent(self, event, ...)
         UpdateStatus()
         if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(10, UpdateStatus) end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        -- my name as the chat writes it (Forever: "First Last"), for my own old messages
+        if UnitGUID and GetPlayerInfoByGUID then
+            local ok, _, _, _, _, _, name = pcall(GetPlayerInfoByGUID, UnitGUID("player"))
+            if ok and type(name) == "string" and name ~= "" then
+                Route.myName = name
+                if Store:Char().me ~= name then Store:Char().me = name; view.key = nil end
+            end
+        end
         ns.blocked = false
         banner:Hide()
         if settings.replaceChat then ApplyReplace(true) end
