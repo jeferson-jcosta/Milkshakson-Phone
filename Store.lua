@@ -1,0 +1,112 @@
+-- Data layer: conversations (per character) and settings (account).
+-- MilkshaksonPhoneCharDB.convs[key] = { key, kind, name, target, chan, cls,
+--   msgs = { { t, text, from, out, cls, ev, tag, info } }, unread, last, pinned, muted }
+local _, ns = ...
+local S = {}
+ns.Store = S
+
+S.DEFAULTS = {
+    replaceChat = true,   -- the phone takes the place of the game's chat
+    muteChannels = true,  -- new public channels (Trade, General...) start muted
+    muteSystem = true,    -- System / NPC conversations start muted
+    maxMsgs = 200,        -- messages kept per conversation
+    w = 330, h = 440,
+}
+
+local listeners = {}
+
+function S:Init()
+    MilkshaksonPhoneDB = type(MilkshaksonPhoneDB) == "table" and MilkshaksonPhoneDB or {}
+    local db = MilkshaksonPhoneDB
+    for k, v in pairs(S.DEFAULTS) do if db[k] == nil then db[k] = v end end
+    MilkshaksonPhoneCharDB = type(MilkshaksonPhoneCharDB) == "table" and MilkshaksonPhoneCharDB or {}
+    local c = MilkshaksonPhoneCharDB
+    c.v = 1
+    c.convs = c.convs or {}
+end
+
+function S:Settings() return MilkshaksonPhoneDB end
+function S:Char() return MilkshaksonPhoneCharDB end
+function S:Get(key) return key and self:Char().convs[key] end
+
+function S:OnChange(f) listeners[#listeners + 1] = f end
+function S:Changed(key) for _, f in ipairs(listeners) do f(key) end end
+
+function S:DefaultMuted(kind)
+    local s = self:Settings()
+    if kind == "channel" then return s.muteChannels and true or false end
+    if kind == "system" or kind == "npc" then return s.muteSystem and true or false end
+    return false
+end
+
+-- r = { key, kind, name, target, chan, cls, msg } from Route:Classify.
+-- active = the conversation is open on screen (the message is read).
+function S:Add(r, active)
+    local convs = self:Char().convs
+    local c = convs[r.key]
+    if not c then
+        c = { key = r.key, kind = r.kind, msgs = {}, unread = 0, last = 0 }
+        c.muted = self:DefaultMuted(r.kind)
+        convs[r.key] = c
+    end
+    if r.name and r.name ~= "" then c.name = r.name end
+    if r.target then c.target = r.target end
+    if r.chan then c.chan = r.chan end
+    if r.cls then c.cls = r.cls end
+    local m = r.msg
+    c.msgs[#c.msgs + 1] = m
+    local max = tonumber(self:Settings().maxMsgs) or 200
+    while #c.msgs > max do table.remove(c.msgs, 1) end
+    c.last = m.t or 0
+    if m.out then
+        c.unread = 0 -- answering means you read it
+    elseif not active and not c.muted then
+        c.unread = math.min((c.unread or 0) + 1, #c.msgs)
+    end
+    self:Changed(r.key)
+    return c
+end
+
+function S:Read(key)
+    local c = self:Get(key)
+    if c and (c.unread or 0) > 0 then c.unread = 0; self:Changed(key) end
+end
+
+local function B(v) return v and 1 or 0 end
+
+-- Conversations with messages (or pinned): pinned first, then newest first.
+function S:List()
+    local t = {}
+    for _, c in pairs(self:Char().convs) do
+        if #c.msgs > 0 or c.pinned then t[#t + 1] = c end
+    end
+    table.sort(t, function(a, b)
+        if B(a.pinned) ~= B(b.pinned) then return B(a.pinned) > B(b.pinned) end
+        if (a.last or 0) ~= (b.last or 0) then return (a.last or 0) > (b.last or 0) end
+        return a.key < b.key
+    end)
+    return t
+end
+
+function S:Unread()
+    local n = 0
+    for _, c in pairs(self:Char().convs) do
+        if not c.muted then n = n + (c.unread or 0) end
+    end
+    return n
+end
+
+function S:Counts()
+    local convs, msgs = 0, 0
+    for _, c in pairs(self:Char().convs) do convs = convs + 1; msgs = msgs + #c.msgs end
+    return convs, msgs
+end
+
+function S:SetPinned(key, v) local c = self:Get(key) if c then c.pinned = v or nil; self:Changed(key) end end
+function S:SetMuted(key, v)
+    local c = self:Get(key)
+    if c then c.muted = v and true or false; if v then c.unread = 0 end; self:Changed(key) end
+end
+function S:ClearConv(key) local c = self:Get(key) if c then wipe(c.msgs); c.unread = 0; self:Changed(key) end end
+function S:Delete(key) local convs = self:Char().convs if convs[key] then convs[key] = nil; self:Changed(key) end end
+function S:Clear() wipe(self:Char().convs); self:Changed(nil) end

@@ -1,0 +1,7 @@
+# BigWigs packager / CurseForge: package the repo root as this addon folder
+package-as: Milkshakson-Phone
+ignore:
+  - .github
+  - .pkgmeta
+  - CHANGELOG.md
+  - assets

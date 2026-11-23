@@ -1,0 +1,25 @@
+## Interface: 16001
+## Title: Milkshakson - Phone
+## Category: Milkshakson
+## Notes: Your chat as a phone messenger: one conversation per player, group and channel, with bubbles, unread counts and history.
+## Notes-ptBR: Seu chat como um mensageiro de celular: uma conversa por jogador, grupo e canal, com balões, mensagens não lidas e histórico.
+## Author: JJC
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Letter_15
+## SavedVariables: MilkshaksonPhoneDB
+## SavedVariablesPerCharacter: MilkshaksonPhoneCharDB
+## AddonCompartmentFunc: MilkshaksonPhone_OnAddonCompartmentClick
+
+Libs\MilkshaksonUI.lua
+
+# Locale system + English (required)
+Locales\Locales.lua
+Locales\enUS.lua
+
+# Language packs (optional)
+Locales\ptBR.lua
+
+Store.lua
+Route.lua
+Phone.lua
+Options.lua
