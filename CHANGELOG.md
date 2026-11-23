@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Archived: private chats with nothing new for 3 days (option, 0 = never) go to "Archived (N)" at the end of the list (with their unread count); click it to see them, "Back" to return. A new message brings a chat back. Right-click a private chat: Archive / Unarchive.
+- Joining a new group clears the group chat (party, raid, instance). Option, on by default.
 - New "Combat" chat (before System in the list): a summary of your biggest hit per spell (you and your pet: amount, crit, target, hits; reset button), read from the lines of the game's own Combat Log window (this client keeps the combat log API from addons; the API is used where a client gives it), and that window embedded below. `/ph combat sample` shows raw lines read. Option, on by default.
 - Option (on by default): minimize when combat starts; it opens again when the fight ends, if combat was what minimized it.
 - Every bubble uses the whole width of the chat (same margin on both sides), so the edges line up; your messages keep the text on the right. Option "Bubbles fit their text" for the previous look.

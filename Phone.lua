@@ -55,6 +55,7 @@ local KIND_ICON = {
     party = "Interface\\Icons\\Ability_Warrior_RallyingCry", raid = "Interface\\Icons\\Ability_Warrior_BattleShout",
     instance = "Interface\\Icons\\INV_Misc_Key_03", ["local"] = "Interface\\Icons\\INV_Misc_GroupNeedMore",
     channel = "Interface\\Icons\\INV_Letter_15", system = "Interface\\Icons\\INV_Misc_Gear_01",
+    archive = "Interface\\Icons\\INV_Box_01", back = "Interface\\Icons\\Spell_ChargeNegative",
     npc = "Interface\\Icons\\Ability_Hunter_BeastCall", combat = "Interface\\Icons\\Ability_DualWield",
 }
 -- Channel icons by name (any client language): business, defense, zone map.
@@ -176,6 +177,8 @@ end
 ns.NameColor = NameColor
 
 local function Title(c)
+    if c.kind == "archive" then return L.ARCHIVED_N:format(c.n or 0) end
+    if c.kind == "back" then return L.BACK end
     if c.kind == "whisper" or c.kind == "bn" or c.kind == "channel" then return c.name or "?" end
     return L["K_" .. c.kind]
 end
@@ -585,6 +588,8 @@ end
 ---------------------------------------------------------------------------
 -- List view
 ---------------------------------------------------------------------------
+local Archived -- (defined with the list, below)
+
 local function RowMenu(owner, c)
     if MenuUtil and MenuUtil.CreateContextMenu then
         MenuUtil.CreateContextMenu(owner, function(_, root)
@@ -598,6 +603,13 @@ local function RowMenu(owner, c)
                 root:CreateDivider()
             end
             root:CreateButton(c.pinned and L.UNPIN or L.PIN, function() Store:SetPinned(c.key, not c.pinned) end)
+            if c.kind == "whisper" or c.kind == "bn" then
+                local a = Archived(c)
+                root:CreateButton(a and L.UNARCHIVE or L.ARCHIVE, function()
+                    c.archived = not a
+                    ns:Refresh()
+                end)
+            end
             root:CreateButton(c.muted and L.UNMUTE or L.MUTE, function() Store:SetMuted(c.key, not c.muted) end)
             if c.kind == "channel" then
                 root:CreateButton(L.HIDE_CHANNEL, function()
@@ -654,7 +666,14 @@ local function Row(i)
     line:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, -6)
     line:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 0)
     r:SetScript("OnClick", function(self, btn)
-        if btn == "RightButton" then RowMenu(self, self.conv) else ns:Open(self.conv.key) end
+        local c = self.conv
+        if c.kind == "archive" or c.kind == "back" then
+            ns.listMode = c.kind == "archive" and "archived" or "main"
+            listScroll:SetVerticalScroll(0)
+            RenderList()
+            return
+        end
+        if btn == "RightButton" then RowMenu(self, c) else ns:Open(c.key) end
     end)
     rows[i] = r
     return r
@@ -669,18 +688,51 @@ local function FitWidth(scroll, content, fallback)
     return w
 end
 
+-- Archived: private chats with nothing new for settings.archiveDays (0 = never),
+-- or archived by hand (c.archived true; false = kept out by hand). A new message
+-- brings a chat back (c.archived cleared when it arrives).
+Archived = function(c)
+    if c.kind ~= "whisper" and c.kind ~= "bn" then return false end
+    if c.archived ~= nil then return c.archived end
+    local days = tonumber(settings.archiveDays) or 3
+    if days <= 0 or c.pinned or (c.last or 0) <= 0 then return false end
+    return time() - c.last > days * 86400
+end
+ns.Archived = Archived
+ns.listMode = "main"
+
 local function RenderList()
     FitWidth(listScroll, listContent, LIST_W)
     local list = {}
+    local arch = { key = "@archive", kind = "archive", msgs = {}, unread = 0, n = 0 }
+    local inArchive = ns.listMode == "archived"
+    if inArchive then list[1] = { key = "@back", kind = "back", msgs = {}, unread = 0 } end
     for _, c in ipairs(Store:List(TopKeys(), HiddenKinds())) do
-        if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then list[#list + 1] = c end
+        if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then
+            local a = Archived(c)
+            if inArchive then
+                if a then list[#list + 1] = c end
+            elseif a then
+                arch.n = arch.n + 1
+                if not c.muted then arch.unread = arch.unread + (c.unread or 0) end
+            else
+                list[#list + 1] = c
+            end
+        end
     end
-    if settings.combatLog then -- combat summary + the game's combat log
+    if inArchive then
+        -- (only the archived chats)
+    elseif arch.n > 0 then
+        list[#list + 1] = arch
+    end
+    if inArchive then
+    elseif settings.combatLog then -- combat summary + the game's combat log
         list[#list + 1] = Store:Ensure("combat", "combat")
     end
-    if settings.showSystem or settings.showNPC then -- always last
+    if not inArchive and (settings.showSystem or settings.showNPC) then -- always last
         list[#list + 1] = Store:Ensure("system", "system")
     end
+    ns.shownList = list
     for i, c in ipairs(list) do
         local r = Row(i)
         r.conv = c
@@ -693,13 +745,15 @@ local function RenderList()
         local cc = NameColor(c)
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
-        local quiet = Quiet(c) or c.kind == "combat"
+        local quiet = Quiet(c) or c.kind == "combat" or c.kind == "archive" or c.kind == "back"
         if quiet then m = nil end
         r.time:SetText(m and ListTime(m.t) or "")
-        r.prev:SetText(m and Preview(c, m) or (c.kind == "combat" and ns.Combat:Preview()) or (quiet and L.QUIET or L.NO_MSGS))
+        local special = (c.kind == "combat" and ns.Combat:Preview()) or (c.kind == "archive" and L.ARCHIVED_SUB)
+            or (c.kind == "back" and "")
+        r.prev:SetText(m and Preview(c, m) or special or (quiet and L.QUIET or L.NO_MSGS))
         local pc = TypeColor(m, c) or COL.sub
         r.prev:SetTextColor(pc[1], pc[2], pc[3])
-        local n = quiet and 0 or (c.muted and (c.unseen or 0) or (c.unread or 0))
+        local n = (c.kind == "archive" and c.unread) or (quiet and 0) or (c.muted and (c.unseen or 0) or (c.unread or 0))
         r.sel:SetShown(openKey == c.key)
         if n > 0 then
             r.badge.n:SetText(n > 99 and "99+" or tostring(n))
@@ -1727,6 +1781,8 @@ chat:SetScript("OnEvent", function(_, event, ...)
     end
     if r.kind == "system" and not (r.msg.npc and settings.showNPC or (not r.msg.npc and settings.showSystem)) then return end
     if Route.myName and Store:Char().me ~= Route.myName then Store:Char().me = Route.myName; view.key = nil end
+    local old = Store:Get(r.key)
+    if old and old.archived ~= nil and not (r.msg and r.msg.out) then old.archived = nil end -- a new message brings it back
     Safe(Store.Add, Store, r, ns:IsOpen(r.key))
 end)
 
@@ -1758,7 +1814,7 @@ local function OnEvent(self, event, ...)
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
             "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE",
-            "PLAYER_REGEN_DISABLED" }) do
+            "PLAYER_REGEN_DISABLED", "GROUP_JOINED" }) do
             pcall(self.RegisterEvent, self, e)
         end
         if settings.combatLog then ns.Combat:Start() end
@@ -1791,6 +1847,15 @@ local function OnEvent(self, event, ...)
         else
             ns:AutoJoin()
         end
+    elseif event == "GROUP_JOINED" then
+        -- option: a new group starts with an empty group chat
+        if settings.resetParty then
+            for _, k in ipairs({ "party", "raid", "instance" }) do
+                if Store:Get(k) then Store:ClearConv(k) end
+            end
+            if openKey == "party" or openKey == "raid" or openKey == "instance" then view.key = nil end
+        end
+        Later()
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- option: minimize when combat starts (and restore after, if combat did it)
         if settings.combatMinimize and not settings.min then
