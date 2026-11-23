@@ -951,35 +951,42 @@ end
 ---------------------------------------------------------------------------
 -- Height transition (minimize / restore): eased, content fades in
 ---------------------------------------------------------------------------
-local ANIM_TIME = 0.18
 local anim = CreateFrame("Frame", nil, UIParent)
 anim:Hide()
 local function Fade(a)
     for _, f in ipairs({ listScroll, chatView, inputBar }) do if f then f:SetAlpha(a) end end
 end
+local function Finish(self)
+    self:Hide()
+    local done = self.done
+    self.done = nil
+    Fade(1)
+    if done then done() end
+end
 anim:SetScript("OnUpdate", function(self, elapsed)
     self.t = self.t + elapsed
-    local p = math.min(1, self.t / ANIM_TIME)
+    local p = math.min(1, self.t / self.dur)
     local e = p * p * (3 - 2 * p) -- smoothstep
     phone:SetHeight(self.from + (self.to - self.from) * e)
-    if self.fadeIn then Fade(e) end
-    if p >= 1 then
-        self:Hide()
-        Fade(1)
-    end
+    if self.mode == "in" then Fade(e) elseif self.mode == "out" then Fade(1 - e) end
+    if p >= 1 then Safe(Finish, self) end
 end)
 
-function ns:AnimateHeight(target, fadeIn)
+-- mode "in": content fades in; "out": fades out, then done() hides it.
+function ns:AnimateHeight(target, mode, done)
     local cur = Num(phone:GetHeight(), target)
-    if not settings.animate or math.abs(cur - target) < 1 or not phone:IsShown() then
+    local dur = tonumber(settings.animTime) or 0.25
+    if not settings.animate or dur <= 0 or math.abs(cur - target) < 1 or not phone:IsShown() then
         anim:Hide()
+        anim.done = nil
         phone:SetHeight(target)
         Fade(1)
+        if done then done() end
         return
     end
     if anim:IsShown() and anim.to == target then return end -- already going there
-    anim.from, anim.to, anim.t, anim.fadeIn = cur, target, 0, fadeIn
-    if fadeIn then Fade(0) end
+    anim.from, anim.to, anim.t, anim.mode, anim.dur, anim.done = cur, target, 0, mode, dur, done
+    if mode == "in" then Fade(0) end
     anim:Show()
 end
 
@@ -991,20 +998,28 @@ function ns:Layout()
     local min = settings.min and not ns.peek -- peek: minimized, opened by the mouse
     local inChat = openKey ~= nil and not min
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
-    listView:ClearAllPoints()
-    listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H)
-    if min then
-        listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
-    else
-        listView:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
-        listView:SetWidth(LIST_W)
+    local function Panes(m)
+        listView:ClearAllPoints()
+        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H)
+        if m then
+            listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
+        else
+            listView:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
+            listView:SetWidth(LIST_W)
+        end
+        listView:Show()
+        listScroll:SetShown(not m)
+        chatView:SetShown(not m)
+        inputBar:SetShown(not m)
+        grip:SetShown(not m and not settings.locked)
     end
-    listView:Show()
-    listScroll:SetShown(not min)
-    chatView:SetShown(not min)
-    inputBar:SetShown(not min)
-    grip:SetShown(not min and not settings.locked)
-    ns:AnimateHeight(min and (STATUS_H + HEAD_H) or settings.h, not min)
+    if min then
+        -- minimizing: the content fades out while the height goes down, then it is hidden
+        ns:AnimateHeight(STATUS_H + HEAD_H, "out", function() Panes(true) end)
+    else
+        Panes(false)
+        ns:AnimateHeight(settings.h, "in")
+    end
     local c = Store:Get(openKey)
     if inChat and c and ChatTarget(c) then
         inputText:SetText(L.INPUT_TO:format(Title(c)))

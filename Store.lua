@@ -14,7 +14,8 @@ S.DEFAULTS = {
     showNPC = true,       -- NPC messages kept in the System chat too
     monitorSystem = false,
     hoverExpand = true,
-    animate = true,       -- smooth minimize / restore   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
+    animate = true,       -- smooth minimize / restore
+    animTime = 0.25,      -- seconds   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
     typeColors = true,    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,

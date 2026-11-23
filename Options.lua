@@ -13,6 +13,8 @@ function ns:BuildOptions(db)
     UI:Check(p, L.CFG_CHAT, L.CFG_CHAT_TIP, function() return db.replaceChat end, function(v) ns:SetReplace(v) end)
     UI:Check(p, L.CFG_HOVER, L.CFG_HOVER_TIP, function() return db.hoverExpand end, function(v) db.hoverExpand = v end)
     UI:Check(p, L.CFG_ANIMATE, nil, function() return db.animate end, function(v) db.animate = v end)
+    UI:Slider(p, L.CFG_ANIM_TIME, 0.05, 1, 0.05, "%.2f s", function() return db.animTime end,
+        function(v) db.animTime = math.floor(v * 100 + 0.5) / 100 end, L.CFG_ANIM_TIME_TIP)
     UI:Check(p, L.CFG_LOCK, nil, function() return db.locked end, function(v) db.locked = v or nil; ns:Layout() end)
     UI:Buttons(p, {
         { L.CFG_RESET, function() SlashCmdList.MILKSHAKSONPHONE("reset") end },
