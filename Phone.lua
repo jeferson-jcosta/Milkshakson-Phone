@@ -980,13 +980,18 @@ local function PlaceMsg(c, m, maxW, group)
         b.time:SetText(Clock(m.t))
         b.time:Show()
         local inner = math.max(tw, math.min(nw, maxW), Num(b.time:GetUnboundedStringWidth(), 30))
+        -- alignment option: "messenger" (yours right), "left" (all left), "right" (all right)
+        local align = settings.align or "messenger"
+        local right = (align == "right") or (align == "messenger" and mine)
+        -- bubbles take the whole width (edges line up), unless "fit to text" is on
+        if not settings.fitBubbles then
+            inner = maxW
+            b.text:SetJustifyH(right and "RIGHT" or "LEFT")
+        end
         b.text:SetWidth(inner + 2)
         local top = showName and 19 or 6
         b.text:SetPoint("TOPLEFT", 8, -top)
         w, h = inner + 18, top + Num(b.text:GetStringHeight(), 14) + 17
-        -- alignment option: "messenger" (yours right), "left" (all left), "right" (all right)
-        local align = settings.align or "messenger"
-        local right = (align == "right") or (align == "messenger" and mine)
         if right then
             b:SetPoint("TOPRIGHT", chatContent, "TOPRIGHT", -8, -view.y)
         else

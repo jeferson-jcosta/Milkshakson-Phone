@@ -2,7 +2,7 @@
 
 ## Unreleased
 - Option (on by default): minimize when combat starts; it opens again when the fight ends, if combat was what minimized it.
-- Long messages use the whole width of the chat (same margin on both sides), so their edges line up with your bubbles.
+- Every bubble uses the whole width of the chat (same margin on both sides), so the edges line up; your messages keep the text on the right. Option "Bubbles fit their text" for the previous look.
 - Fix: your own messages in channels, guild and group showed as someone else's (left side, with your name). On Forever names have a last name, so you are now recognized by your GUID; old saved messages are fixed by your full name.
 - Option: message alignment - Messenger (yours on the right, default), All on the left, All on the right. Your bubbles stay green.
 - Option: font size of the phone (0.80x - 1.60x of the game's size), for every text; list rows grow with it; applied at once.

@@ -19,6 +19,7 @@ S.DEFAULTS = {
     animTime = 0.25,      -- seconds   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
     typeColors = true,
     fontScale = 1,
+    fitBubbles = false,   -- bubbles fit their text (off: whole width, edges line up)
     align = "messenger", -- messages: messenger (yours right) / left / right        -- font size of the phone (0.8 - 1.6)    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
     w = 560, h = 480,
