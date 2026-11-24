@@ -593,6 +593,13 @@ function ns:AutoJoin()
     -- never touch channels in combat (the game may block the addon); retry after
     if InCombatLockdown and InCombatLockdown() then ns.joinAfterCombat = true return end
     ns.joinAfterCombat = nil
+    -- not inside instances (General/Trade don't exist there; blocked channel calls
+    -- can make the game offer to disable addons)
+    if IsInInstance and IsInInstance() then return end
+    if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown then
+        local ok, locked = pcall(C_ChatInfo.InChatMessagingLockdown)
+        if ok and locked then return end
+    end
     local names = {}
     if EnumerateServerChannels then
         for _, n in ipairs({ EnumerateServerChannels() }) do
