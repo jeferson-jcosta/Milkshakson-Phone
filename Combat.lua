@@ -580,6 +580,39 @@ function C:CopyText()
         info = info .. "\nGetNumMessages: " .. tostring(okM) .. " " .. tostring(nm)
         out[#out + 1] = info
     end
+    -- every field the game's damage meter gives per spell (is there a biggest hit?)
+    local DM, E = C_DamageMeter, Enum
+    if DM and DM.GetCombatSessionSourceFromType and E and E.DamageMeterSessionType and E.DamageMeterType then
+        local ok, sd = pcall(DM.GetCombatSessionSourceFromType, E.DamageMeterSessionType.Overall,
+            E.DamageMeterType.DamageDone, UnitGUID and UnitGUID("player"))
+        local function Dump(t, depth)
+            if type(t) ~= "table" then return tostring(t) end
+            local parts = {}
+            for k, v in pairs(t) do
+                local val
+                if issecretvalue and issecretvalue(v) then val = "(secret)"
+                elseif type(v) == "table" and depth < 2 then val = "{" .. Dump(v, depth + 1) .. "}"
+                else val = tostring(v) end
+                parts[#parts + 1] = tostring(k) .. "=" .. val
+            end
+            return table.concat(parts, ", ")
+        end
+        if ok and type(sd) == "table" then
+            local sp = sd.combatSpells
+            out[#out + 1] = "damage meter source: " .. Dump(sd, 2):sub(1, 300)
+            if type(sp) == "table" then
+                for i = 1, math.min(3, #sp) do out[#out + 1] = "damage meter spell " .. i .. ": " .. Dump(sp[i], 0) end
+            end
+        else
+            out[#out + 1] = "damage meter: " .. tostring(ok) .. " " .. tostring(sd)
+        end
+        local fns = {}
+        for k in pairs(DM) do fns[#fns + 1] = tostring(k) end
+        table.sort(fns)
+        out[#out + 1] = "C_DamageMeter: " .. table.concat(fns, ", ")
+    else
+        out[#out + 1] = "C_DamageMeter: not in this client"
+    end
     -- other chat windows that look like a combat log
     for i = 1, 10 do
         local f = _G["ChatFrame" .. i]
