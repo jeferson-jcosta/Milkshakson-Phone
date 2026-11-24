@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Option: minimize when not used for 5 minutes (0 - 30, 0 = off). Not used = no mouse over the phone, no typing, no menu open; new messages do not count.
 
 ## 0.3.0
 - Private chats with nothing new for 2 hours (option, 0 = off) go after the channels (General, Trade...); a new message brings them back up; unread ones stay up.

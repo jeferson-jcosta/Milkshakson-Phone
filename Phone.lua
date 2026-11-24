@@ -1594,6 +1594,19 @@ end
 function ns:HoverTick(dt)
     if not phone then return end
     ns.hoverTicks = (ns.hoverTicks or 0) + 1
+    -- idle: no mouse over the phone, no typing, no menu for settings.idleMinutes -> minimize
+    do
+        local now = GetTime()
+        local overNow = phone.IsMouseOver and phone:IsMouseOver()
+        local e = EditBox()
+        if overNow or (e and e.HasFocus and e:HasFocus()) or MenuOpen() or not ns.lastActive then ns.lastActive = now end
+        local idle = tonumber(settings.idleMinutes) or 0
+        if idle > 0 and not settings.min and phone:IsShown() and now - ns.lastActive > idle * 60 then
+            ns.lastActive = now
+            ns:Minimize(true)
+            ns.holdPeek = nil
+        end
+    end
     if not (settings.min and settings.hoverExpand and phone:IsShown()) then
         if ns.peek then ns.peek = false; ns:Layout() end
         return

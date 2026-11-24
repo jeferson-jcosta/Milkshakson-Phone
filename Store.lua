@@ -18,7 +18,8 @@ S.DEFAULTS = {
     staleHours = 2,       -- private chats with nothing new for this many hours go after the channels (0 = off)      -- private chats with nothing new for this many days go to Archived (0 = never)
     resetParty = true,    -- joining a new group clears the group chat     -- Combat chat: biggest hit per spell + the game's combat log
     hoverExpand = true,
-    combatMinimize = true, -- minimize when combat starts, restore when it ends
+    combatMinimize = true,
+    idleMinutes = 5,      -- minimize when not used for this many minutes (0 = off) -- minimize when combat starts, restore when it ends
     animate = true,       -- smooth minimize / restore
     animTime = 0.25,      -- seconds   -- minimized: the mouse over the phone opens it, leaving minimizes it -- System chat shows no badge / last message unless monitored
     typeColors = true,

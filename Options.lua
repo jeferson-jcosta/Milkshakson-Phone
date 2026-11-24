@@ -18,6 +18,8 @@ function ns:BuildOptions(db)
         function() return db.align end, function(v) db.align = v; if ns.Redraw then ns:Redraw() end end)
     UI:Check(p, L.CFG_FIT, nil, function() return db.fitBubbles end, function(v) db.fitBubbles = v or nil; if ns.Redraw then ns:Redraw() end end)
     UI:Check(p, L.CFG_COMBAT, L.CFG_COMBAT_TIP, function() return db.combatMinimize end, function(v) db.combatMinimize = v end)
+    UI:Slider(p, L.CFG_IDLE, 0, 30, 1, "%d min", function() return db.idleMinutes end,
+        function(v) db.idleMinutes = math.floor(v + 0.5) end, L.CFG_IDLE_TIP)
     UI:Check(p, L.CFG_HOVER, L.CFG_HOVER_TIP, function() return db.hoverExpand end, function(v) db.hoverExpand = v end)
     UI:Check(p, L.CFG_ANIMATE, nil, function() return db.animate end, function(v) db.animate = v end)
     UI:Slider(p, L.CFG_ANIM_TIME, 0.05, 1, 0.05, "%.2f s", function() return db.animTime end,
