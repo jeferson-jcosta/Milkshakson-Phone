@@ -147,6 +147,7 @@ L.CL_INCHAT      = "The game's combat log is in the game's chat (the phone is no
 L.CL_LOG         = "Reading the game's combat log (this client keeps the combat log API from addons). Fight something!"
 L.CL_FROMLOG     = "read from the game's log"
 L.CL_DIAG        = "Lines read: %d  -  recognized: %d  -  reader on: %s. Last line:"
+L.CL_TOTAL       = "total %s"
 L.CFG_COMBATLOG  = "Combat chat: your biggest hit per spell + the game's combat log"
 L.CFG_COMBATLOG_TIP = "Uses the combat log the game gives to addons, if this client does."
 L.CFG_MONITOR    = "Monitor the System chat (unread count and last message in the list)"
