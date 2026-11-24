@@ -75,7 +75,7 @@ end
 local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", guild = "GUILD", officer = "OFFICER", ["local"] = "SAY" }
 
 local phone, clockText, zoneText, banner, grip
-local listView, listTitle, listScroll, listContent, emptyText, listHead
+local listView, listTitle, listScroll, listContent, emptyText, listHead, searchBox
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
@@ -231,6 +231,30 @@ local function IsMine(m)
     return me ~= nil and m.from == me and not m.npc
 end
 ns.IsMine = IsMine
+
+-- Search (the box at the top of the chats list): ns.query, lower case.
+local function Plain(t)
+    return ((t or ""):gsub("|H.-|h(.-)|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""))
+end
+local function Matches(m, q)
+    if not q then return true end
+    return Plain(m.text):lower():find(q, 1, true) ~= nil or ((m.from or ""):lower():find(q, 1, true) ~= nil)
+end
+ns.Matches = Matches
+
+-- The search term in yellow (only in text without links / codes, to keep them intact).
+local function Highlight(s, q)
+    if not q or s:find("|", 1, true) then return s end
+    local low, out, i = s:lower(), {}, 1
+    while true do
+        local a, b = low:find(q, i, true)
+        if not a then break end
+        out[#out + 1] = s:sub(i, a - 1) .. "|cffffd100" .. s:sub(a, b) .. "|r"
+        i = b + 1
+    end
+    out[#out + 1] = s:sub(i)
+    return table.concat(out)
+end
 
 local function Preview(c, m)
     local s = OneLine(Body(m))
@@ -784,8 +808,31 @@ local function RenderList()
     local list = {}
     local arch = { key = "@archive", kind = "archive", msgs = {}, unread = 0, n = 0 }
     local inArchive = ns.listMode == "archived"
-    if inArchive then list[1] = { key = "@back", kind = "back", msgs = {}, unread = 0 } end
-    for _, c in ipairs(Store:List(TopKeys(), HiddenKinds())) do
+    local q = ns.query
+    if q then
+        -- search: every chat whose name matches or that has matching messages
+        local found = {}
+        for _, c in pairs(Store:Char().convs) do
+            if c.kind ~= "npc" and not (c.kind == "channel" and ns:ChannelHidden(c.name)) then
+                local n, lastM = 0, nil
+                for _, m in ipairs(c.msgs) do if Matches(m, q) then n = n + 1; lastM = m end end
+                local nameHit = (Title(c) or ""):lower():find(q, 1, true)
+                if n > 0 or nameHit then
+                    c.hits, c.hitMsg = n, lastM
+                    found[#found + 1] = c
+                end
+            end
+        end
+        table.sort(found, function(a, b)
+            local ta, tb = a.hitMsg and a.hitMsg.t or 0, b.hitMsg and b.hitMsg.t or 0
+            if ta ~= tb then return ta > tb end
+            return a.key < b.key
+        end)
+        list = found
+        inArchive = true -- (no folders / combat / system rows while searching)
+    end
+    if inArchive and not q then list[1] = { key = "@back", kind = "back", msgs = {}, unread = 0 } end
+    for _, c in ipairs(q and {} or Store:List(TopKeys(), HiddenKinds())) do
         if not (c.kind == "channel" and ns:ChannelHidden(c.name)) then
             local a = Archived(c)
             if inArchive then
@@ -823,12 +870,14 @@ local function RenderList()
         local cc = NameColor(c)
         r.name:SetTextColor(cc[1], cc[2], cc[3])
         local m = c.msgs[#c.msgs]
-        local quiet = Quiet(c) or c.kind == "combat" or c.kind == "archive" or c.kind == "back"
+        if q then m = c.hitMsg end
+        local quiet = not q and (Quiet(c) or c.kind == "combat" or c.kind == "archive" or c.kind == "back")
         if quiet then m = nil end
         r.time:SetText(m and ListTime(m.t) or "")
         local special = (c.kind == "combat" and ns.Combat:Preview()) or (c.kind == "archive" and L.ARCHIVED_SUB)
             or (c.kind == "back" and "")
-        r.prev:SetText(m and Preview(c, m) or special or (quiet and L.QUIET or L.NO_MSGS))
+        r.prev:SetText(m and ((q and c.hits and c.hits > 1) and ("(" .. c.hits .. ") ") or "") .. Preview(c, m)
+            or special or (q and L.SEARCH_NAME) or (quiet and L.QUIET or L.NO_MSGS))
         local pc = TypeColor(m, c) or COL.sub
         r.prev:SetTextColor(pc[1], pc[2], pc[3])
         local n = (c.kind == "archive" and c.unread) or (quiet and 0) or (c.muted and (c.unseen or 0) or (c.unread or 0))
@@ -847,6 +896,7 @@ local function RenderList()
     end
     for i = #list + 1, #rows do rows[i]:Hide() end
     listContent:SetHeight(math.max(1, #list * RowH()))
+    emptyText:SetText(q and L.SEARCH_NONE or L.EMPTY)
     emptyText:SetShown(#list == 0)
     return #list
 end
@@ -1095,7 +1145,7 @@ local function PlaceMsg(c, m, maxW, group)
     local tc = TypeColor(m, c)
     b.text:ClearAllPoints()
     b.text:SetWidth(maxW)
-    b.text:SetText(Body(m))
+    b.text:SetText(Highlight(Body(m), ns.query))
     local tw = math.min(maxW, Num(b.text:GetUnboundedStringWidth(), maxW))
     local w, h
     b:ClearAllPoints()
@@ -1179,6 +1229,13 @@ local function RenderChat(mode)
     -- long messages use the whole width (8 px margin each side + 8 px padding inside), so edges line up
     local maxW = math.floor(width) - 16 - 18
     local msgs = c.msgs
+    local q = ns.query
+    if q then
+        local t = {}
+        for _, m in ipairs(c.msgs) do if Matches(m, q) then t[#t + 1] = m end end
+        msgs = t
+    end
+    if view.query ~= q then mode = mode or "open" end -- search changed: draw it all again
     local stick = mode == "open" or (mode == nil and AtBottom())
     local from
     if mode == nil and view.key == c.key and view.width == width then
@@ -1190,6 +1247,7 @@ local function RenderChat(mode)
     end
     if not from then
         ResetView(c.key, width)
+        view.query = q
         from = math.max(1, #msgs - view.show + 1)
         view.first = from
     end
@@ -1278,6 +1336,7 @@ function ns:Layout()
         end
         listView:Show()
         listScroll:SetShown(not m)
+        if searchBox then searchBox:SetShown(not m) end
         chatView:SetShown(not m and openKey ~= "combat")
         if not m and openKey == "combat" then ns.Combat:Show() else ns.Combat:Hide() end
         inputBar:SetShown(not m)
@@ -1662,8 +1721,49 @@ local function Build()
     listTitle:SetPoint("LEFT", 12, 0)
     local minB = MinButton(lh)
     minB:SetPoint("RIGHT", -10, 0)
+    -- search box
+    local sb = CreateFrame("EditBox", nil, listView)
+    sb:SetHeight(22)
+    sb:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 8, -4)
+    sb:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT", -8, -4)
+    sb:SetAutoFocus(false)
+    sb:SetFontObject(GameFontHighlightSmall)
+    sb:SetTextInsets(22, 20, 0, 0)
+    Tex(sb, "BACKGROUND", COL.input):SetAllPoints()
+    local mag = sb:CreateTexture(nil, "ARTWORK")
+    mag:SetSize(14, 14)
+    mag:SetPoint("LEFT", 5, 0)
+    mag:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    local hint = Font(sb, "GameFontDisableSmall", COL.sub)
+    hint:SetPoint("LEFT", 22, 0)
+    hint:SetText(L.SEARCH)
+    local clear = CreateFrame("Button", nil, sb)
+    clear:SetSize(16, 16)
+    clear:SetPoint("RIGHT", -3, 0)
+    local ct = clear:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    ct:SetPoint("CENTER")
+    ct:SetText("x")
+    clear:Hide()
+    local function Apply(text)
+        text = strtrim and strtrim(text or "") or (text or "")
+        ns.query = text ~= "" and text:lower() or nil
+        hint:SetShown(text == "" and not sb:HasFocus())
+        clear:SetShown(text ~= "")
+        listScroll:SetVerticalScroll(0)
+        RenderList()
+        if openKey then RenderChat() end
+    end
+    sb:SetScript("OnTextChanged", function(self) Safe(Apply, self:GetText()) end)
+    sb:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+    sb:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    sb:SetScript("OnEditFocusGained", function() hint:Hide() end)
+    sb:SetScript("OnEditFocusLost", function(self) hint:SetShown((self:GetText() or "") == "") end)
+    clear:SetScript("OnClick", function() sb:SetText(""); sb:ClearFocus() end)
+    searchBox = sb
+    ns.searchBox = sb
+
     listScroll, listContent = Scroller(listView)
-    listScroll:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 0, -2)
+    listScroll:SetPoint("TOPLEFT", sb, "BOTTOMLEFT", -8, -4)
     listScroll:SetPoint("BOTTOMRIGHT")
     emptyText = Font(listContent, "GameFontHighlightSmall", COL.sub, "CENTER")
     emptyText:SetPoint("TOPLEFT", 20, -30)

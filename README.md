@@ -10,6 +10,7 @@ Your chat as a **phone messenger**. Instead of one stream mixing whispers, guild
 - **Replaces the game's chat** (on by default): the game's chat windows are hidden and the typing box sits on the phone. Open a conversation and press Enter, or click the bottom bar: you type straight to that player / group / channel. Slash commands work as usual.
 - **Combat**: your biggest hit per spell (and your pet's), plus the game's combat log.
 - **System & NPCs** in one quiet chat at the end of the list (no badge, no last message; option to monitor it). Each can be switched off.
+- **Search**: find chats and messages (name or text), matches highlighted.
 - **Colors**: text colored by chat type (guild green, party blue...), using the game's chat colors.
 - **Players**: right-click a message for whisper, invite to group / guild, add friend, /who, copy name, ignore (and the game's own menu). Click a name to talk to them privately.
 - Public channels (Trade, General...) start **muted** (grey count instead of a green badge). Right-click a chat: pin, mute, clear, delete.
