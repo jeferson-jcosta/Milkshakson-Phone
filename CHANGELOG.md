@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Fix: the **Archived** folder did not open (clicking it raised an error).
 
 ## 0.3.1
 - Option: minimize when not used for 5 minutes (0 - 30, 0 = off). Not used = no mouse over the phone, no typing, no menu open; new messages do not count.

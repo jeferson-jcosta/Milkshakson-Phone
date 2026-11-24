@@ -692,6 +692,7 @@ function ns:CopyMsg(m)
 end
 
 local Archived -- (defined with the list, below)
+local RenderList -- (defined below; list rows call it)
 
 local function RowMenu(owner, c)
     if MenuUtil and MenuUtil.CreateContextMenu then
@@ -805,7 +806,7 @@ end
 ns.Archived = Archived
 ns.listMode = "main"
 
-local function RenderList()
+RenderList = function()
     FitWidth(listScroll, listContent, LIST_W)
     local list = {}
     local arch = { key = "@archive", kind = "archive", msgs = {}, unread = 0, n = 0 }
