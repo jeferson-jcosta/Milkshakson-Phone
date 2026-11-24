@@ -2,7 +2,7 @@
 
 ## Unreleased
 - Private chats with nothing new for 2 hours (option, 0 = off) go after the channels (General, Trade...); a new message brings them back up; unread ones stay up.
-- Options button always in the chats header (also minimized and with the Combat chat open).
+- Options and -/+ only in the chats header (always there, also minimized); the chat header keeps just the copy button.
 - Fix: the Combat chat said the phone was not replacing the game's chat when it was open on /reload (the log now goes in when the phone takes the chat).
 - New "Combat" chat (before System in the list): the game's own Combat Log window inside the phone. On WoW: Forever addons can't read the combat log (no API, and its lines are protected), so there is no summary. Option, on by default.
 - Search box at the top of the chats list: shows the chats whose name or messages match (newest match first, with the count), and an opened chat shows only the matching messages, with the term highlighted. x or Esc clears it.
