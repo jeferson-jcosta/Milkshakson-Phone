@@ -554,6 +554,37 @@ function C:CopyText()
     end
     out[#out + 1] = ""
     out[#out + 1] = "read by poll: " .. tostring(self.viaPoll)
+    -- how the game's window keeps its lines (to adjust the reader)
+    local cf2 = _G.ChatFrame2
+    if cf2 then
+        local hb = cf2.historyBuffer
+        local info = "ChatFrame2: shown " .. tostring(cf2:IsShown()) .. ", name " .. tostring(cf2.name)
+            .. ", historyBuffer " .. tostring(hb ~= nil)
+        if hb then
+            local okN, n = pcall(function() return hb:GetNumElements() end)
+            info = info .. ", elements " .. tostring(okN and n or n)
+            local okE, e = pcall(function() return hb:GetEntryAtIndex(1) end)
+            if okE and type(e) == "table" then
+                local keys = {}
+                for k, val in pairs(e) do
+                    keys[#keys + 1] = tostring(k) .. "=" .. ((issecretvalue and issecretvalue(val)) and "(secret)" or type(val))
+                end
+                info = info .. ", entry {" .. table.concat(keys, ", ") .. "}"
+                local m = e.message
+                if type(m) == "string" then info = info .. "\nfirst entry: " .. m:gsub("|", "||"):sub(1, 300) end
+            else
+                info = info .. ", entry " .. tostring(okE) .. " " .. tostring(e)
+            end
+        end
+        local okM, nm = pcall(function() return cf2:GetNumMessages() end)
+        info = info .. "\nGetNumMessages: " .. tostring(okM) .. " " .. tostring(nm)
+        out[#out + 1] = info
+    end
+    -- other chat windows that look like a combat log
+    for i = 1, 10 do
+        local f = _G["ChatFrame" .. i]
+        if f and f ~= cf2 and f.historyBuffer and f.name then out[#out + 1] = "ChatFrame" .. i .. ": " .. tostring(f.name) end
+    end
     out[#out + 1] = "status: " .. tostring(self.status) .. "  -  " .. L.CL_DIAG:format(self.seen or 0, self.matched or 0, tostring(self.hookOk))
     if self.lastRaw then out[#out + 1] = (self.lastRaw:gsub("|", "||")) end
     if self.lastErr then out[#out + 1] = self.lastErr end
