@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+
+## 0.3.1
 - Option: minimize when not used for 5 minutes (0 - 30, 0 = off). Not used = no mouse over the phone, no typing, no menu open; new messages do not count.
 
 ## 0.3.0
