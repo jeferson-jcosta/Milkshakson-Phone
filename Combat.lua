@@ -27,67 +27,11 @@ function C:Data()
     return c.dmg
 end
 
--- Total damage per spell from the game's own damage meter (C_DamageMeter, the
--- Midnight replacement for the combat log; what EllesmereUI uses). It has totals,
--- not single hits. nil while secret (in combat) or when the client has none.
-function C:DMTotals()
-    local DM, E = C_DamageMeter, Enum
-    if not (DM and DM.GetCombatSessionSourceFromType and E and E.DamageMeterSessionType and E.DamageMeterType) then
-        return nil, "no-api"
-    end
-    local ok, sd = pcall(DM.GetCombatSessionSourceFromType, E.DamageMeterSessionType.Overall,
-        E.DamageMeterType.DamageDone, UnitGUID and UnitGUID("player"))
-    if not ok or type(sd) ~= "table" or type(sd.combatSpells) ~= "table" then return nil, "none" end
-    local t = {}
-    for _, sp in ipairs(sd.combatSpells) do
-        local id, amt = sp.spellID, sp.totalAmount
-        if issecretvalue and (issecretvalue(id) or issecretvalue(amt)) then return nil, "secret" end
-        if id and type(amt) == "number" then t[id] = (t[id] or 0) + amt end
-    end
-    return t
-end
-
-local function SpellName(id)
-    if C_Spell and C_Spell.GetSpellName then
-        local ok, n = pcall(C_Spell.GetSpellName, id)
-        if ok and n then return n end
-    end
-    if GetSpellInfo then
-        local ok, n = pcall(GetSpellInfo, id)
-        if ok and n then return n end
-    end
-    return "#" .. tostring(id)
-end
-
--- Sorted list of { name, id, max, crit, target, hits, pet, total }: biggest hit
--- (from the log lines) and, when the game's damage meter has it, the total.
+-- Sorted list of { name, id, max, crit, target, hits, pet }: the biggest hit per spell.
 function C:List()
-    local t, byId = {}, {}
-    local totals = self:DMTotals()
-    local idByName = {}
-    if totals then for id in pairs(totals) do idByName[SpellName(id)] = id end end
-    for _, d in pairs(self:Data()) do
-        local row = { name = d.name, id = d.id, max = d.max, crit = d.crit, target = d.target, hits = d.hits, pet = d.pet }
-        if totals and not d.pet then
-            -- lines without links have no spell id: match the meter by name; melee = Auto Attack
-            local key = (d.name == L.MELEE and 6603) or ((d.id or 0) ~= 0 and d.id) or idByName[d.name]
-            row.total = totals[key]
-            if totals[key] then byId[key] = true end
-        end
-        t[#t + 1] = row
-    end
-    if totals then -- spells the meter has but no line was read for
-        for id, amount in pairs(totals) do
-            if not byId[id] then
-                t[#t + 1] = { id = (id == 6603) and 0 or id, name = (id == 6603) and L.MELEE or SpellName(id), max = 0, total = amount }
-            end
-        end
-    end
-    table.sort(t, function(a, b)
-        if (a.max or 0) ~= (b.max or 0) then return (a.max or 0) > (b.max or 0) end
-        if (a.total or 0) ~= (b.total or 0) then return (a.total or 0) > (b.total or 0) end
-        return (a.name or "") < (b.name or "")
-    end)
+    local t = {}
+    for _, d in pairs(self:Data()) do t[#t + 1] = d end
+    table.sort(t, function(a, b) if a.max ~= b.max then return a.max > b.max end return (a.name or "") < (b.name or "") end)
     return t
 end
 
@@ -545,10 +489,8 @@ function C:Render()
         r:SetPoint("RIGHT", v.content, "RIGHT")
         r.icon:SetTexture(SpellIcon(d.id))
         r.name:SetText((d.name or "?") .. (d.pet and (" (" .. L.PET .. ")") or ""))
-        r.amount:SetText(((d.max or 0) > 0 and Short(d.max) or "-") .. (d.crit and (" |cffffd133" .. L.CRIT .. "|r") or ""))
-        local det = (d.max or 0) > 0 and L.CL_DETAIL:format(d.target or "?", d.hits or 0) or ""
-        if d.total then det = det .. (det ~= "" and "  -  " or "") .. L.CL_TOTAL:format(Short(d.total)) end
-        r.detail:SetText(det)
+        r.amount:SetText(Short(d.max) .. (d.crit and (" |cffffd133" .. L.CRIT .. "|r") or ""))
+        r.detail:SetText(L.CL_DETAIL:format(d.target or "?", d.hits or 0))
         r:Show()
     end
     for i = #list + 1, #rows do rows[i]:Hide() end
@@ -607,13 +549,11 @@ end
 function C:CopyText()
     local out = { L.CL_SUMMARY }
     for _, d in ipairs(self:List()) do
-        out[#out + 1] = (d.name or "?") .. (d.pet and (" (" .. L.PET .. ")") or "") .. ": " .. Short(d.max or 0)
+        out[#out + 1] = (d.name or "?") .. (d.pet and (" (" .. L.PET .. ")") or "") .. ": " .. Short(d.max)
             .. (d.crit and (" " .. L.CRIT) or "") .. "  -  " .. L.CL_DETAIL:format(d.target or "?", d.hits or 0)
-            .. (d.total and ("  -  " .. L.CL_TOTAL:format(Short(d.total))) or "")
     end
     out[#out + 1] = ""
-    local _, why = self:DMTotals()
-    out[#out + 1] = "damage meter: " .. tostring(why or "ok") .. "  -  read by poll: " .. tostring(self.viaPoll)
+    out[#out + 1] = "read by poll: " .. tostring(self.viaPoll)
     out[#out + 1] = "status: " .. tostring(self.status) .. "  -  " .. L.CL_DIAG:format(self.seen or 0, self.matched or 0, tostring(self.hookOk))
     if self.lastRaw then out[#out + 1] = (self.lastRaw:gsub("|", "||")) end
     if self.lastErr then out[#out + 1] = self.lastErr end

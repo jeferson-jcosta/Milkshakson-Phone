@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Combat summary: the lines of the game's Combat Log window are now read from its history (the game adds them without AddMessage, so nothing was read before). Each spell also shows its total damage from the game's own damage meter (C_DamageMeter, the same source EllesmereUI uses), when the client has it and it is not hidden (in combat).
+- Combat summary: the lines of the game's Combat Log window are now read from its history (the game adds them without AddMessage, so nothing was read before).
 - Search box at the top of the chats list: shows the chats whose name or messages match (newest match first, with the count), and an opened chat shows only the matching messages, with the term highlighted. x or Esc clears it.
 - Combat tab: copy button (summary, reader state and the last lines of the game's combat log as written).
 - Copy: the copy button at the top of a chat (or right-click a chat in the list) opens the whole chat as plain text, selected, in a window - Ctrl+C copies it. Right-click a message: Copy message (also for your own). Links become plain text.

@@ -147,7 +147,6 @@ L.CL_INCHAT      = "O registro de combate do jogo está no chat do jogo (o telef
 L.CL_LOG         = "Lendo o registro de combate do jogo (este cliente não entrega a API de combate aos addons). Vá bater em algo!"
 L.CL_FROMLOG     = "lido do registro do jogo"
 L.CL_DIAG        = "Linhas lidas: %d  -  reconhecidas: %d  -  leitor ligado: %s. Última linha:"
-L.CL_TOTAL       = "total %s"
 L.CFG_COMBATLOG  = "Conversa de combate: seu maior dano por magia + o registro de combate do jogo"
 L.CFG_COMBATLOG_TIP = "Usa o registro de combate que o jogo entrega aos addons, se este cliente entregar."
 L.CFG_MONITOR    = "Monitorar a conversa Sistema (contador e última mensagem na lista)"
