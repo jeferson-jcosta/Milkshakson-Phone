@@ -1367,6 +1367,7 @@ function ns:Layout()
         if not m and openKey == "combat" then ns.Combat:Show() else ns.Combat:Hide() end
         inputBar:SetShown(not m)
         grip:SetShown(not m and not settings.locked)
+        for _, z in ipairs(ns.sizers or {}) do z:SetShown(not m and not settings.locked) end
     end
     if min then
         -- minimizing: the content fades out while the height goes down, then it is hidden
@@ -1903,13 +1904,43 @@ local function Build()
     grip:SetPoint("BOTTOMRIGHT", -3, 3)
     grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-    grip:SetScript("OnMouseDown", function() phone:StartSizing("BOTTOMRIGHT") end)
-    grip:SetScript("OnMouseUp", function()
+    local function EndSizing()
         phone:StopMovingOrSizing()
         settings.w, settings.h = math.floor(Num(phone:GetWidth(), settings.w)), math.floor(Num(phone:GetHeight(), settings.h))
         SavePoint()
         ns:Refresh()
-    end)
+    end
+    grip:SetScript("OnMouseDown", function() phone:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", EndSizing)
+
+    -- Resize by dragging any border or corner (invisible handles over the edges).
+    local EDGE, CORNER = 5, 12
+    ns.sizers = {}
+    local function Sizer(point, w, h)
+        local s = CreateFrame("Frame", nil, phone)
+        s:SetFrameLevel(phone:GetFrameLevel() + 30)
+        s:EnableMouse(true)
+        if w then s:SetWidth(w) end
+        if h then s:SetHeight(h) end
+        s:SetScript("OnMouseDown", function(_, btn)
+            if btn == "LeftButton" and not settings.locked and not settings.min then phone:StartSizing(point) end
+        end)
+        s:SetScript("OnMouseUp", EndSizing)
+        ns.sizers[#ns.sizers + 1] = s
+        return s
+    end
+    local s = Sizer("LEFT", EDGE)
+    s:SetPoint("TOPLEFT", 0, -CORNER); s:SetPoint("BOTTOMLEFT", 0, CORNER)
+    s = Sizer("RIGHT", EDGE)
+    s:SetPoint("TOPRIGHT", 0, -CORNER); s:SetPoint("BOTTOMRIGHT", 0, CORNER)
+    s = Sizer("TOP", nil, EDGE)
+    s:SetPoint("TOPLEFT", CORNER, 0); s:SetPoint("TOPRIGHT", -CORNER, 0)
+    s = Sizer("BOTTOM", nil, EDGE)
+    s:SetPoint("BOTTOMLEFT", CORNER, 0); s:SetPoint("BOTTOMRIGHT", -CORNER, 0)
+    for _, c in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT" }) do
+        s = Sizer(c, CORNER, CORNER)
+        s:SetPoint(c)
+    end
     phone:SetScript("OnSizeChanged", function() Later() end)
     phone:SetScript("OnShow", function() Later() end)
 

@@ -1,5 +1,8 @@
 # Changelog - Milkshakson - Phone
 
+## Unreleased
+- Resize the phone by dragging any border or corner (not only the grip at the bottom right). Off while "Lock position and size" is on or the phone is minimized.
+
 ## 0.3.2
 - Fix: the **Archived** folder did not open (clicking it raised an error).
 
