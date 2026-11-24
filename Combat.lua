@@ -315,7 +315,7 @@ function C:Build(phone, left, bottomOffset, headH)
     v.title = title
     local sub = Font(h, "GameFontHighlightSmall", COL.sub)
     sub:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 1)
-    sub:SetPoint("RIGHT", h, "RIGHT", -90, 0)
+    sub:SetPoint("RIGHT", h, "RIGHT", -120, 0)
     sub:SetWordWrap(false)
     v.sub = sub
     local reset = CreateFrame("Button", nil, h, "UIPanelButtonTemplate")
@@ -324,6 +324,18 @@ function C:Build(phone, left, bottomOffset, headH)
     reset:SetText(L.CL_RESET)
     reset:SetScript("OnClick", function() C:Reset() end)
     v.reset = reset
+    local copy = CreateFrame("Button", nil, h)
+    copy:SetSize(20, 20)
+    copy:SetPoint("RIGHT", reset, "LEFT", -6, 0)
+    copy:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up")
+    copy:SetHighlightTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up", "ADD")
+    copy:SetScript("OnClick", function() if ns.ShowCopy then ns:ShowCopy(L.K_combat, C:CopyText()) end end)
+    copy:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.COPY_CONV)
+        GameTooltip:Show()
+    end)
+    copy:SetScript("OnLeave", GameTooltip_Hide)
     -- summary list (top half)
     local box = CreateFrame("Frame", nil, v)
     box:SetPoint("TOPLEFT", h, "BOTTOMLEFT", 0, -2)
@@ -479,6 +491,35 @@ function C:Embed(on)
         self.home = nil
         self.embedded = false
     end
+end
+
+-- Text for the copy window: the summary, the reader's state and the last lines
+-- of the game's Combat Log window as the game wrote them.
+function C:CopyText()
+    local out = { L.CL_SUMMARY }
+    for _, d in ipairs(self:List()) do
+        out[#out + 1] = (d.name or "?") .. (d.pet and (" (" .. L.PET .. ")") or "") .. ": " .. Short(d.max)
+            .. (d.crit and (" " .. L.CRIT) or "") .. "  -  " .. L.CL_DETAIL:format(d.target or "?", d.hits or 0)
+    end
+    out[#out + 1] = ""
+    out[#out + 1] = "status: " .. tostring(self.status) .. "  -  " .. L.CL_DIAG:format(self.seen or 0, self.matched or 0, tostring(self.hookOk))
+    if self.lastRaw then out[#out + 1] = (self.lastRaw:gsub("|", "||")) end
+    if self.lastErr then out[#out + 1] = self.lastErr end
+    local cf = _G.ChatFrame2
+    if cf and cf.GetNumMessages and cf.GetMessageInfo then
+        out[#out + 1] = ""
+        out[#out + 1] = L.CL_GAMELOG .. ":"
+        local ok, n = pcall(cf.GetNumMessages, cf)
+        n = ok and Num(n, 0) or 0
+        for i = math.max(1, n - 39), n do
+            local ok2, text = pcall(cf.GetMessageInfo, cf, i)
+            if ok2 and text then
+                if issecretvalue and issecretvalue(text) then text = "(secret)" end
+                out[#out + 1] = (tostring(text):gsub("|", "||"))
+            end
+        end
+    end
+    return table.concat(out, "\n")
 end
 
 function C:Show()

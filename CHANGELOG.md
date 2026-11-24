@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Combat tab: copy button (summary, reader state and the last lines of the game's combat log as written).
 - Copy: the copy button at the top of a chat (or right-click a chat in the list) opens the whole chat as plain text, selected, in a window - Ctrl+C copies it. Right-click a message: Copy message (also for your own). Links become plain text.
 - Archived: private chats with nothing new for 3 days (option, 0 = never) go to "Archived (N)" at the end of the list (with their unread count); click it to see them, "Back" to return. A new message brings a chat back. Right-click a private chat: Archive / Unarchive.
 - Joining a new group clears the group chat (party, raid, instance). Option, on by default.
