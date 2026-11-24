@@ -1,6 +1,6 @@
 # Changelog - Milkshakson - Phone
 
-## Unreleased
+## 0.3.2
 - Fix: the **Archived** folder did not open (clicking it raised an error).
 
 ## 0.3.1
