@@ -1,6 +1,9 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Private chats with nothing new for 2 hours (option, 0 = off) go after the channels (General, Trade...); a new message brings them back up; unread ones stay up.
+- Options button always in the chats header (also minimized and with the Combat chat open).
+- Fix: the Combat chat said the phone was not replacing the game's chat when it was open on /reload (the log now goes in when the phone takes the chat).
 - New "Combat" chat (before System in the list): the game's own Combat Log window inside the phone. On WoW: Forever addons can't read the combat log (no API, and its lines are protected), so there is no summary. Option, on by default.
 - Search box at the top of the chats list: shows the chats whose name or messages match (newest match first, with the count), and an opened chat shows only the matching messages, with the term highlighted. x or Esc clears it.
 - Copy: the copy button at the top of a chat (or right-click a chat in the list) opens the whole chat as plain text, selected, in a window - Ctrl+C copies it. Right-click a message: Copy message (also for your own). Links become plain text.

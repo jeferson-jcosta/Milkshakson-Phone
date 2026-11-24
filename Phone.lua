@@ -472,6 +472,8 @@ local function ApplyReplace(on)
         DockEditBox(false)
     end
     ns.replacing = on and true or false
+    -- the Combat chat open: the game's combat log goes in (it could not before)
+    if on and ns.Combat and ns.Combat.view and ns.Combat.view:IsShown() then ns.Combat:Embed(true) end
 end
 ns.ApplyReplace = ApplyReplace
 
@@ -842,6 +844,29 @@ local function RenderList()
                 if not c.muted then arch.unread = arch.unread + (c.unread or 0) end
             else
                 list[#list + 1] = c
+            end
+        end
+    end
+    if not inArchive then
+        -- private chats with nothing new for a few hours go down, after the
+        -- channels (Trade...): the fresh ones stay on top
+        local hours = tonumber(settings.staleHours) or 2
+        if hours > 0 then
+            local fresh, stale, lastChan = {}, {}, 0
+            local now = time()
+            for _, c in ipairs(list) do
+                if (c.kind == "whisper" or c.kind == "bn") and not c.pinned and (c.unread or 0) == 0
+                    and now - (c.last or 0) > hours * 3600 then
+                    stale[#stale + 1] = c
+                else
+                    fresh[#fresh + 1] = c
+                    if c.kind == "channel" then lastChan = #fresh end
+                end
+            end
+            if #stale > 0 then
+                local at = (lastChan > 0) and lastChan or #fresh
+                for i, c in ipairs(stale) do table.insert(fresh, at + i, c) end
+                list = fresh
             end
         end
     end
@@ -1721,6 +1746,9 @@ local function Build()
     listTitle:SetPoint("LEFT", 12, 0)
     local minB = MinButton(lh)
     minB:SetPoint("RIGHT", -10, 0)
+    -- options: always here (also minimized and with the Combat chat open)
+    local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
+    cfgL:SetPoint("RIGHT", minB, "LEFT", -4, 0)
     -- search box
     local sb = CreateFrame("EditBox", nil, listView)
     sb:SetHeight(22)

@@ -38,6 +38,8 @@ function ns:BuildOptions(db)
     UI:Check(p, L.CFG_COLORS, L.CFG_COLORS_TIP, function() return db.typeColors end, function(v) db.typeColors = v; if ns.Redraw then ns:Redraw() end end)
     p.y = p.y - 8
     UI:Check(p, L.CFG_RESETPARTY, nil, function() return db.resetParty end, function(v) db.resetParty = v end)
+    UI:Slider(p, L.CFG_STALE, 0, 24, 1, "%d h", function() return db.staleHours end,
+        function(v) db.staleHours = math.floor(v + 0.5); R() end, L.CFG_STALE_TIP)
     UI:Slider(p, L.CFG_ARCHIVE, 0, 30, 1, "%d", function() return db.archiveDays end,
         function(v) db.archiveDays = math.floor(v + 0.5); R() end, L.CFG_ARCHIVE_TIP)
     UI:Check(p, L.CFG_MUTE_CH, nil, function() return db.muteChannels end, function(v) db.muteChannels = v end)
