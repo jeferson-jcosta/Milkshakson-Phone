@@ -588,6 +588,83 @@ end
 ---------------------------------------------------------------------------
 -- List view
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Copy: addons can't write to the clipboard, so the text opens selected in a
+-- window and Ctrl+C copies it.
+---------------------------------------------------------------------------
+local function PlainText(t)
+    return ((t or ""):gsub("|H.-|h(.-)|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        :gsub("|T.-|t", ""):gsub("|A.-|a", ""))
+end
+
+local function MsgLine(m)
+    local who
+    if not m.info then
+        if IsMine(m) then who = Route.myName or (Store:Char() and Store:Char().me) or L.YOU else who = m.from end
+    end
+    local body = PlainText(m.text)
+    if m.ev == "EMOTE" and m.from then body = m.from .. " " .. body end
+    return "[" .. date("%d/%m %H:%M", m.t or 0) .. "] " .. (who and (who .. ": ") or "") .. body
+end
+ns.MsgLine = MsgLine
+
+local copyFrame
+function ns:ShowCopy(title, text)
+    if not copyFrame then
+        local f = CreateFrame("Frame", "MilkshaksonPhoneCopy", UIParent, "BackdropTemplate")
+        f:SetSize(560, 380)
+        f:SetPoint("CENTER")
+        f:SetFrameStrata("DIALOG")
+        if f.SetBackdrop then
+            f:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+                insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+            f:SetBackdropColor(0.04, 0.08, 0.1, 0.96)
+        end
+        f:EnableMouse(true)
+        f:SetMovable(true)
+        f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving)
+        f:SetScript("OnDragStop", f.StopMovingOrSizing)
+        if UISpecialFrames then table.insert(UISpecialFrames, "MilkshaksonPhoneCopy") end
+        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.title:SetPoint("TOPLEFT", 12, -10)
+        local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        close:SetPoint("TOPRIGHT", 0, 0)
+        local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 12, -32)
+        sf:SetPoint("BOTTOMRIGHT", -32, 12)
+        local eb = CreateFrame("EditBox", nil, sf)
+        eb:SetMultiLine(true)
+        eb:SetAutoFocus(false)
+        eb:SetFontObject(ChatFontNormal or GameFontHighlight)
+        eb:SetWidth(500)
+        eb:SetScript("OnEscapePressed", function() f:Hide() end)
+        eb:SetScript("OnTextChanged", function(self, user) if user then self:SetText(f.text or ""); self:HighlightText() end end)
+        sf:SetScrollChild(eb)
+        f.eb = eb
+        copyFrame = f
+    end
+    copyFrame.text = text or ""
+    copyFrame.title:SetText((title or "") .. "  -  " .. L.COPY_HINT)
+    copyFrame.eb:SetText(copyFrame.text)
+    copyFrame:Show()
+    copyFrame.eb:SetFocus()
+    copyFrame.eb:HighlightText()
+end
+
+function ns:CopyConv(key)
+    local c = Store:Get(key)
+    if not c then return end
+    local lines = {}
+    for _, m in ipairs(c.msgs) do lines[#lines + 1] = MsgLine(m) end
+    ns:ShowCopy(Title(c), table.concat(lines, "\n"))
+end
+
+function ns:CopyMsg(m)
+    if m then ns:ShowCopy(L.COPY_MSG, MsgLine(m)) end
+end
+
 local Archived -- (defined with the list, below)
 
 local function RowMenu(owner, c)
@@ -619,6 +696,7 @@ local function RowMenu(owner, c)
                     ns:Refresh()
                 end)
             end
+            root:CreateButton(L.COPY_CONV, function() Safe(ns.CopyConv, ns, c.key) end)
             root:CreateButton(L.CLEAR_CONV, function() Store:ClearConv(c.key) end)
             root:CreateButton(L.DELETE_CONV, function() Safe(ns.DeleteConv, ns, c.key) end)
         end)
@@ -877,7 +955,7 @@ ns.ACTIONS = {
 
 -- Right-click on a player (bubble, name or private chat): the actions of the
 -- game's chat menu, plus the game's own menu at the end.
-function ns:PlayerMenu(owner, full, line, chatType)
+function ns:PlayerMenu(owner, full, line, chatType, msg)
     if not full or full == "" then return end
     local short = (Ambiguate and Ambiguate(full, "short")) or full:gsub("%-.*$", "")
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
@@ -892,6 +970,10 @@ function ns:PlayerMenu(owner, full, line, chatType)
             end
         end
         root:CreateButton(L.ACT_MORE, function() Safe(GameMenu, full, line, chatType) end)
+        if msg then
+            root:CreateDivider()
+            root:CreateButton(L.COPY_MSG, function() Safe(ns.CopyMsg, ns, msg) end)
+        end
     end)
 end
 
@@ -938,7 +1020,17 @@ local function Bubble(i)
         local who = m and not IsMine(m) and not m.info and not m.npc and (m.full or m.from) -- older messages have no full name
         settings.lastClick = { button = tostring(button), who = who or "-", menu = (MenuUtil and MenuUtil.CreateContextMenu) and "yes" or "no" }
         if button == "RightButton" and who then
-            Safe(ns.PlayerMenu, ns, self, who, m.line, m.ev)
+            Safe(ns.PlayerMenu, ns, self, who, m.line, m.ev, m)
+        elseif button == "RightButton" and m then
+            -- mine / system / NPC: just copy
+            if MenuUtil and MenuUtil.CreateContextMenu then
+                MenuUtil.CreateContextMenu(self, function(_, root)
+                    root:CreateButton(L.COPY_MSG, function() Safe(ns.CopyMsg, ns, m) end)
+                    root:CreateButton(L.COPY_CONV, function() Safe(ns.CopyConv, ns, openKey) end)
+                end)
+            else
+                Safe(ns.CopyMsg, ns, m)
+            end
         end
     end)
     -- hover: shows the message is clickable
@@ -1595,9 +1687,21 @@ local function Build()
     minC:SetPoint("RIGHT", -10, 0)
     local cfgC = TextButton(ch, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
     cfgC:SetPoint("RIGHT", minC, "LEFT", -2, 0)
+    local copyC = CreateFrame("Button", nil, ch)
+    copyC:SetSize(20, 20)
+    copyC:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
+    copyC:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up")
+    copyC:SetHighlightTexture("Interface\\Buttons\\UI-GuildButton-PublicNote-Up", "ADD")
+    copyC:SetScript("OnClick", function() if openKey then Safe(ns.CopyConv, ns, openKey) end end)
+    copyC:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.COPY_CONV)
+        GameTooltip:Show()
+    end)
+    copyC:SetScript("OnLeave", GameTooltip_Hide)
     chatTitle = Font(ch, "GameFontHighlight", COL.text)
     chatTitle:SetPoint("TOPLEFT", chatIcon, "TOPRIGHT", 8, -1)
-    chatTitle:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
+    chatTitle:SetPoint("RIGHT", copyC, "LEFT", -4, 0)
     chatTitle:SetWordWrap(false)
     -- Click the name of a private chat: the game's player menu.
     local who = CreateFrame("Button", nil, ch)
@@ -1621,7 +1725,7 @@ local function Build()
     who:SetScript("OnLeave", GameTooltip_Hide)
     chatSub = Font(ch, "GameFontHighlightSmall", COL.sub)
     chatSub:SetPoint("BOTTOMLEFT", chatIcon, "BOTTOMRIGHT", 8, 1)
-    chatSub:SetPoint("RIGHT", cfgC, "LEFT", -4, 0)
+    chatSub:SetPoint("RIGHT", copyC, "LEFT", -4, 0)
     chatSub:SetWordWrap(false)
     chatScroll, chatContent = Scroller(chatView, function() Safe(ns.More, ns) end)
 
