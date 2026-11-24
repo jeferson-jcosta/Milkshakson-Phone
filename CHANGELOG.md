@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+
+## 0.3.0
 - Private chats with nothing new for 2 hours (option, 0 = off) go after the channels (General, Trade...); a new message brings them back up; unread ones stay up.
 - Options and -/+ only in the chats header (always there, also minimized); the chat header keeps just the copy button.
 - Fix: the Combat chat said the phone was not replacing the game's chat when it was open on /reload (the log now goes in when the phone takes the chat).
