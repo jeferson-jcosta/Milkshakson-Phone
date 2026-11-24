@@ -1,13 +1,11 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Combat summary: the lines of the game's Combat Log window are now read from its history (the game adds them without AddMessage, so nothing was read before).
+- New "Combat" chat (before System in the list): the game's own Combat Log window inside the phone. On WoW: Forever addons can't read the combat log (no API, and its lines are protected), so there is no summary. Option, on by default.
 - Search box at the top of the chats list: shows the chats whose name or messages match (newest match first, with the count), and an opened chat shows only the matching messages, with the term highlighted. x or Esc clears it.
-- Combat tab: copy button (summary, reader state and the last lines of the game's combat log as written).
 - Copy: the copy button at the top of a chat (or right-click a chat in the list) opens the whole chat as plain text, selected, in a window - Ctrl+C copies it. Right-click a message: Copy message (also for your own). Links become plain text.
 - Archived: private chats with nothing new for 3 days (option, 0 = never) go to "Archived (N)" at the end of the list (with their unread count); click it to see them, "Back" to return. A new message brings a chat back. Right-click a private chat: Archive / Unarchive.
 - Joining a new group clears the group chat (party, raid, instance). Option, on by default.
-- New "Combat" chat (before System in the list): a summary of your biggest hit per spell (you and your pet: amount, crit, target, hits; reset button), read from the lines of the game's own Combat Log window (this client keeps the combat log API from addons; the API is used where a client gives it), and that window embedded below. `/ph combat sample` shows raw lines read. Option, on by default.
 - Option (on by default): minimize when combat starts; it opens again when the fight ends, if combat was what minimized it.
 - Every bubble uses the whole width of the chat (same margin on both sides), so the edges line up; your messages keep the text on the right. Option "Bubbles fit their text" for the previous look.
 - Fix: your own messages in channels, guild and group showed as someone else's (left side, with your name). On Forever names have a last name, so you are now recognized by your GUID; old saved messages are fixed by your full name.

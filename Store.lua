@@ -43,6 +43,8 @@ function S:Init()
     local c = MilkshaksonPhoneCharDB
     c.v = 1
     c.convs = c.convs or {}
+    c.dmg = nil -- (old combat summary: the combat log can't be read on Forever)
+    db.clSamples, db.clMode = nil, nil
 end
 
 function S:Settings() return MilkshaksonPhoneDB end

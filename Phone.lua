@@ -1906,7 +1906,7 @@ ns.PROBE = {
     "ChatFrame_OpenChat", "ChatFrameUtil.OpenChat", "ChatEdit_UpdateHeader", "ChatFrameUtil.UpdateHeader",
     "ChatEdit_ActivateChat", "FCF_OpenTemporaryWindow", "SendChatMessage", "C_ChatInfo.SendChatMessage",
     "Ambiguate", "GetPlayerInfoByGUID", "C_ClassColor.GetClassColor", "CLASS_ICON_TCOORDS",
-    "C_BattleNet.GetAccountInfoByID", "CombatLogGetCurrentEventInfo", "ChatFrame2", "C_Spell.GetSpellTexture", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc", "MouseIsOver",
+    "C_BattleNet.GetAccountInfoByID", "ChatFrame2", "UnitPopup_OpenMenu", "FriendsFrame_ShowDropdown", "C_FriendList.SendWho", "C_FriendList.SetWhoToUi", "C_FriendList.GetWhoInfo", "GetChannelList", "GetChannelName", "JoinChannelByName", "EnumerateServerChannels", "IsInGroup", "IsInRaid", "IsInGuild", "MenuUtil.CreateContextMenu", "SetItemRef", "issecretvalue", "hooksecurefunc", "MouseIsOver",
 }
 
 local function Lookup(path)
@@ -2115,9 +2115,6 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         -- a whisper that only exists on the phone (nothing is sent)
         local r = Route:Classify("CHAT_MSG_WHISPER", L.TEST_TEXT, L.TEST_FROM, "", "", L.TEST_FROM, "", 0, 0, "", 0, 0, "")
         if r then Safe(Store.Add, Store, r, ns:IsOpen(r.key)) end
-    elseif msg == "combat sample" then
-        local t = settings.clSamples
-        Notice("combat log", (t and #t > 0) and table.concat(t, "\n\n") or "-")
     elseif msg == "show channels" then
         settings.hiddenChannels = nil
         ns:Refresh()
@@ -2136,7 +2133,6 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
         local ok, missing = ns:Probe()
         print(PREFIX .. L.PROBE_OK:format(#ok, table.concat(ok, ", ")))
         print(PREFIX .. L.PROBE_MISSING:format(#missing, #missing > 0 and table.concat(missing, ", ") or "-"))
-        print(PREFIX .. "combat log: " .. tostring(ns.Combat.status))
         local j = settings.lastJoin
         if j then print(PREFIX .. L.PROBE_JOIN:format(j.tried, j.joined ~= "" and j.joined or "-")) end
         local s = settings.secret

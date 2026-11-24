@@ -33,7 +33,7 @@ function ns:BuildOptions(db)
     local function Hide(kind, on) if not on and ns.CloseKind then ns:CloseKind(kind) end R() end
     UI:Check(p, L.CFG_SYSTEM, L.CFG_SYSTEM_TIP, function() return db.showSystem end, function(v) db.showSystem = v; if not v and not db.showNPC then Hide("system", v) end; R() end)
     UI:Check(p, L.CFG_NPC, nil, function() return db.showNPC end, function(v) db.showNPC = v; if not v and not db.showSystem then Hide("system", v) end; R() end)
-    UI:Check(p, L.CFG_COMBATLOG, L.CFG_COMBATLOG_TIP, function() return db.combatLog end, function(v) db.combatLog = v; if v then ns.Combat:Start() elseif ns.CloseKind then ns:CloseKind("combat") end; R() end)
+    UI:Check(p, L.CFG_COMBATLOG, L.CFG_COMBATLOG_TIP, function() return db.combatLog end, function(v) db.combatLog = v; if not v and ns.CloseKind then ns:CloseKind("combat") end; R() end)
     UI:Check(p, L.CFG_MONITOR, L.CFG_MONITOR_TIP, function() return db.monitorSystem end, function(v) db.monitorSystem = v; R() end)
     UI:Check(p, L.CFG_COLORS, L.CFG_COLORS_TIP, function() return db.typeColors end, function(v) db.typeColors = v; if ns.Redraw then ns:Redraw() end end)
     p.y = p.y - 8
