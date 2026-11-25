@@ -1,6 +1,6 @@
 # Changelog - Milkshakson - Phone
 
-## Unreleased
+## 0.3.3
 - Fix: pressing ESC could make the game block "SpellStopCasting" and offer to disable addons (seen in dungeons). The phone no longer opens the game's own player menu ("More (game menu)" removed; shift/ctrl-click on a name does nothing): opening it from addon code tainted the game's ESC handling. The phone's player menu keeps whisper, invite, guild invite, add friend, /who, copy name and ignore.
 - While the phone replaces the chat, no other chat shows: the game's chat no longer comes back during combat / encounters (only the banner; messages the game hides from addons are not shown then), and **EllesmereUI Chat**'s panels are hidden too (through its own visibility rule, its settings are not changed).
 - Auto-join (General/Trade/LocalDefense) is skipped inside instances and while the game locks chat.
