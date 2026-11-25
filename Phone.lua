@@ -980,25 +980,11 @@ function ns:Whisper(full)
     ns:Compose()
 end
 
--- The game's own player menu (report, etc.). Tries the menu API of this client,
--- then the older ones; settings.lastMenu says which one ran.
-local function GameMenu(full, line, chatType)
-    local name, server = full:match("^([^%-]+)%-?(.*)$")
-    local used
-    if UnitPopup_OpenMenu then
-        local ok = pcall(UnitPopup_OpenMenu, "FRIEND", { name = name, server = server ~= "" and server or nil,
-            lineID = line, chatType = chatType or "WHISPER", chatFrame = ChatFrame1 })
-        if ok then used = "UnitPopup_OpenMenu" end
-    end
-    if not used and FriendsFrame_ShowDropdown then
-        if pcall(FriendsFrame_ShowDropdown, full, 1, line, chatType, ChatFrame1) then used = "FriendsFrame_ShowDropdown" end
-    end
-    if not used and SetItemRef then
-        if pcall(SetItemRef, "player:" .. full .. (line and (":" .. line) or ""), name, "RightButton", ChatFrame1) then used = "SetItemRef" end
-    end
-    settings.lastMenu = used or "none"
-end
-ns.GameMenu = GameMenu
+-- The game's own player menu (UnitPopup) is NOT opened from the phone: opening
+-- it from addon code taints the game's menu state, and the next ESC then tries
+-- SpellStopCasting tainted -> "AddOn 'Milkshakson-Phone' tried to call the
+-- protected function" and the game offers to disable addons (seen in dungeons,
+-- 2026-11-24). The phone's own menu has the actions instead.
 
 -- Calls a game function; a failure is shown on the phone (never silent).
 local function Call(f, ...)
@@ -1067,7 +1053,7 @@ function ns:PlayerMenu(owner, full, line, chatType, msg)
     if not full or full == "" then return end
     local short = (Ambiguate and Ambiguate(full, "short")) or full:gsub("%-.*$", "")
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
-        GameMenu(full, line, chatType)
+        ns:Whisper(full)
         return
     end
     MenuUtil.CreateContextMenu(owner, function(_, root)
@@ -1077,7 +1063,6 @@ function ns:PlayerMenu(owner, full, line, chatType, msg)
                 root:CreateButton(L["ACT_" .. a[1]], function() Safe(a[2], full) end)
             end
         end
-        root:CreateButton(L.ACT_MORE, function() Safe(GameMenu, full, line, chatType) end)
         if msg then
             root:CreateDivider()
             root:CreateButton(L.COPY_MSG, function() Safe(ns.CopyMsg, ns, msg) end)
@@ -1086,7 +1071,7 @@ function ns:PlayerMenu(owner, full, line, chatType, msg)
 end
 
 -- Click on a link in a bubble. Player name: left = private chat on the phone,
--- right = game's player menu, shift / ctrl = the game's own behavior (/who...).
+-- right = the phone's player menu, with modifiers = nothing (no game player menu).
 function ns:OnLink(link, text, button)
     local kind, rest = (link or ""):match("^(%a+):(.*)$")
     if kind == "player" then
@@ -1100,7 +1085,11 @@ function ns:OnLink(link, text, button)
             ns:Whisper(name)
             return
         end
+        -- shift / ctrl / alt: nothing from the game's player link (it opens the
+        -- game's player menu from addon code, which taints ESC)
+        return
     end
+    if kind == "BNplayer" then return end
     if SetItemRef then SetItemRef(link, text, button, ChatFrame1) end
 end
 
@@ -1875,7 +1864,7 @@ local function Build()
     chatTitle:SetPoint("TOPLEFT", chatIcon, "TOPRIGHT", 8, -1)
     chatTitle:SetPoint("RIGHT", copyC, "LEFT", -4, 0)
     chatTitle:SetWordWrap(false)
-    -- Click the name of a private chat: the game's player menu.
+    -- Click the name of a private chat: the phone's player menu.
     local who = CreateFrame("Button", nil, ch)
     who:SetPoint("TOPLEFT", chatIcon, "TOPLEFT")
     who:SetPoint("BOTTOMRIGHT", chatTitle, "BOTTOMRIGHT", 0, -16)
