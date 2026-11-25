@@ -2178,7 +2178,7 @@ local function OnEvent(self, event, ...)
 end
 ev:SetScript("OnEvent", function(self, event, ...) Safe(OnEvent, self, event, ...) end)
 
--- Public: the Milkshakson addons put their messages in one "Milkshakson addons"
+-- Public: the Milkshakson addons put their messages in one "Milkshakson-Addons"
 -- conversation on the phone (the game's chat window is hidden while the phone
 -- replaces it). Optional for them: they check that this function exists.
 --   MilkshaksonPhone_AddonMessage("Trader", "text")
