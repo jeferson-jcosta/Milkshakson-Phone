@@ -182,6 +182,7 @@ local function Title(c)
     if c.kind == "whisper" or c.kind == "bn" or c.kind == "channel" then return c.name or "?" end
     return L["K_" .. c.kind]
 end
+ns.Title = Title
 
 local function IsGroup(kind) return kind ~= "whisper" and kind ~= "bn" end
 
