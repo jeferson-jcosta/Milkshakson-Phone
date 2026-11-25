@@ -57,6 +57,7 @@ local KIND_ICON = {
     channel = "Interface\\Icons\\INV_Letter_15", system = "Interface\\Icons\\INV_Misc_Gear_01",
     archive = "Interface\\Icons\\INV_Box_01", back = "Interface\\Icons\\Spell_ChargeNegative",
     npc = "Interface\\Icons\\Ability_Hunter_BeastCall", combat = "Interface\\Icons\\Ability_DualWield",
+    rolls = "Interface\\Buttons\\UI-GroupLoot-Dice-Up",
 }
 -- Channel icons by name (any client language): business, defense, zone map.
 local CHANNEL_ICON = {
@@ -191,7 +192,7 @@ local function Sub(c)
     if c.kind == "whisper" then s = L.SUB_WHISPER
     elseif c.kind == "bn" then s = L.SUB_BN
     elseif c.kind == "channel" then s = c.chan and L.SUB_CHANNEL:format(c.chan) or L.SUB_GROUP
-    elseif c.kind == "system" or c.kind == "npc" or c.kind == "addon" then s = L.SUB_READONLY
+    elseif c.kind == "system" or c.kind == "npc" or c.kind == "addon" or c.kind == "rolls" then s = L.SUB_READONLY
     else s = L.SUB_GROUP end
     if c.muted then s = s .. "  -  " .. L.MUTED end
     return s
@@ -534,7 +535,7 @@ end
 -- Conversations switched off in the options (not stored, not listed).
 local function HiddenKinds()
     -- npc: older separate NPC chat (NPCs now go to System); system: listed apart, at the end
-    return { system = true, npc = true, combat = true }
+    return { system = true, npc = true, combat = true, rolls = true }
 end
 
 -- System (+ NPCs): quiet unless monitored — no badge, no last message.
@@ -908,6 +909,9 @@ RenderList = function()
         -- (only the archived chats)
     elseif arch.n > 0 then
         list[#list + 1] = arch
+    end
+    if not inArchive and settings.showRolls then -- loot rolls: who chose Need / Greed / Pass and who won
+        list[#list + 1] = Store:Ensure("rolls", "rolls")
     end
     if inArchive then
     elseif settings.combatLog then -- combat summary + the game's combat log
@@ -1571,6 +1575,11 @@ function ns:ApplyFontScale()
     ns:Redraw()
 end
 
+-- A message of this conversation changed in place (rolls): draw it again if open.
+function ns:RedrawKey(key)
+    if view.key == key then view.key = nil end
+end
+
 -- Draw everything again (colors changed).
 function ns:Redraw()
     view.key = nil
@@ -2113,6 +2122,7 @@ local function OnEvent(self, event, ...)
             pcall(self.RegisterEvent, self, e)
         end
         if settings.combatLog then ns.Combat:Start() end
+        if ns.Rolls then ns.Rolls:Start() end
         ns:BuildOptions(settings)
         if settings.replaceChat or settings.shown ~= false then phone:Show() else phone:Hide() end
         local first = settings.lastOpen or "guild"

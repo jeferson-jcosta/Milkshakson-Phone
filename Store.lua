@@ -14,6 +14,7 @@ S.DEFAULTS = {
     showNPC = true,       -- NPC messages kept in the System chat too
     monitorSystem = false,
     combatLog = true,
+    showRolls = true,     -- Rolls chat: Need / Greed / Pass per item and the winner
     archiveDays = 3,
     staleHours = 2,       -- private chats with nothing new for this many hours go after the channels (0 = off)      -- private chats with nothing new for this many days go to Archived (0 = never)
     resetParty = true,    -- joining a new group clears the group chat     -- Combat chat: biggest hit per spell + the game's combat log

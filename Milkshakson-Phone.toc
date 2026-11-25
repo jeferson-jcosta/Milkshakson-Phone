@@ -22,5 +22,6 @@ Locales\ptBR.lua
 Store.lua
 Route.lua
 Combat.lua
+Rolls.lua
 Phone.lua
 Options.lua

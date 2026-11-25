@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- **Loot rolls** chat: one message per item rolled on in your group — who chose Need, Greed, Disenchant or Pass (with the roll numbers, highest first) and who won it ("Everyone passed" too). Read from the game's loot messages in any client language. Option "Loot rolls chat" (on).
 - The Milkshakson addons show their messages in one "Milkshakson-Addons" conversation on the phone, each line tagged with the addon: `MilkshaksonPhone_AddonMessage(addon, text)` (used by Milkshakson-Trader). The game's chat window is hidden while the phone replaces it, so their chat messages were lost.
 
 ## 0.3.4
