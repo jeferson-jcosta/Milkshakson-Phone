@@ -1,6 +1,6 @@
 # Changelog - Milkshakson - Phone
 
-## Unreleased
+## 0.3.4
 - Fix: "Milkshakson-Phone has been blocked from an action" on ESC (SpellStopCasting / SpellStopTargeting). Phone re-assigned the game's `StaticPopupDialogs` table at login, which tainted every dialog check the game does on ESC. Now it only adds its own dialog to it.
 
 ## 0.3.3
