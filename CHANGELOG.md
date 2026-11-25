@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- Other addons can show their messages in their own conversation on the phone: `MilkshaksonPhone_AddonMessage(addon, text, icon)` (used by Milkshakson-Trader). The game's chat window is hidden while the phone replaces it, so their chat messages were lost.
+- The Milkshakson addons show their messages in one "Milkshakson addons" conversation on the phone, each line tagged with the addon: `MilkshaksonPhone_AddonMessage(addon, text)` (used by Milkshakson-Trader). The game's chat window is hidden while the phone replaces it, so their chat messages were lost.
 
 ## 0.3.4
 - Fix: "Milkshakson-Phone has been blocked from an action" on ESC (SpellStopCasting / SpellStopTargeting). Phone re-assigned the game's `StaticPopupDialogs` table at login, which tainted every dialog check the game does on ESC. Now it only adds its own dialog to it.

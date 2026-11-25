@@ -2178,17 +2178,17 @@ local function OnEvent(self, event, ...)
 end
 ev:SetScript("OnEvent", function(self, event, ...) Safe(OnEvent, self, event, ...) end)
 
--- Public: other addons put their messages in their own conversation on the
--- phone (the game's chat window is hidden while the phone replaces it).
--- Optional for them: they check that this function exists.
---   MilkshaksonPhone_AddonMessage("Trader", "text", "Interface\\Icons\\INV_Misc_Coin_01")
-function MilkshaksonPhone_AddonMessage(addon, text, icon)
+-- Public: the Milkshakson addons put their messages in one "Milkshakson addons"
+-- conversation on the phone (the game's chat window is hidden while the phone
+-- replaces it). Optional for them: they check that this function exists.
+--   MilkshaksonPhone_AddonMessage("Trader", "text")
+local ADDON_KEY = "milkshakson"
+function MilkshaksonPhone_AddonMessage(addon, text)
     if type(addon) ~= "string" or addon == "" or type(text) ~= "string" or not settings then return false end
-    local key = "addon:" .. addon:lower()
-    local c = Store:Ensure(key, "addon", addon)
-    if icon then c.icon = icon end
-    Safe(Store.Add, Store, { key = key, kind = "addon", name = addon,
-        msg = { t = time(), text = text, info = true, ev = "SYSTEM" } }, ns:IsOpen(key))
+    local c = Store:Ensure(ADDON_KEY, "addon", L.ADDONS_CHAT)
+    c.icon = "Interface\\Icons\\INV_Misc_Coin_01"
+    Safe(Store.Add, Store, { key = ADDON_KEY, kind = "addon", name = L.ADDONS_CHAT,
+        msg = { t = time(), text = "|cff33ff99" .. addon .. ":|r " .. text, info = true, ev = "SYSTEM" } }, ns:IsOpen(ADDON_KEY))
     return true
 end
 
