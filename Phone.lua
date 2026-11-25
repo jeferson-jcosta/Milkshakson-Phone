@@ -911,7 +911,18 @@ RenderList = function()
         list[#list + 1] = arch
     end
     if not inArchive and settings.showRolls then -- loot rolls: who chose Need / Greed / Pass and who won
-        list[#list + 1] = Store:Ensure("rolls", "rolls")
+        local rc = Store:Ensure("rolls", "rolls")
+        local inst = IsInInstance and select(2, IsInInstance()) or nil
+        if inst == "party" or inst == "raid" or inst == "scenario" then
+            -- in a dungeon / raid: right under the group chats
+            local at = 0
+            for i, c in ipairs(list) do
+                if c.key == "party" or c.key == "raid" or c.key == "instance" then at = i end
+            end
+            table.insert(list, at + 1, rc)
+        else
+            list[#list + 1] = rc
+        end
     end
     if inArchive then
     elseif settings.combatLog then -- combat summary + the game's combat log
