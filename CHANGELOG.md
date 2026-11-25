@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- While the phone replaces the chat, no other chat shows: the game's chat no longer comes back during combat / encounters (only the banner; messages the game hides from addons are not shown then), and **EllesmereUI Chat**'s panels are hidden too (through its own visibility rule, its settings are not changed).
 - Auto-join (General/Trade/LocalDefense) is skipped inside instances and while the game locks chat.
 - Resize the phone by dragging any border or corner (not only the grip at the bottom right). Off while "Lock position and size" is on or the phone is minimized.
 

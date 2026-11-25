@@ -461,6 +461,29 @@ local function ParkAll()
     for _, n in ipairs(CHAT_PARTS) do Park(_G[n]) end
 end
 
+-- EllesmereUI Chat draws its own panels (on UIParent) over the game's chat
+-- frames: while the phone replaces the chat, its visibility rule answers
+-- "hidden" (optional, only when EllesmereUI Chat is loaded; its settings are
+-- not touched).
+local function EllesmereChatCfg()
+    local db = _G._ECHAT_DB
+    return type(db) == "table" and type(db.profile) == "table" and db.profile.chat or nil
+end
+local function EllesmereHide()
+    local EUI = _G.EllesmereUI
+    if type(EUI) ~= "table" or type(EUI.EvalVisibility) ~= "function" or not EllesmereChatCfg() then return end
+    if not EUI._milkPhoneWrapped then
+        local orig = EUI.EvalVisibility
+        EUI.EvalVisibility = function(cfg, ...)
+            if ns.replacing and cfg ~= nil and cfg == EllesmereChatCfg() then return false end
+            return orig(cfg, ...)
+        end
+        EUI._milkPhoneWrapped = true
+    end
+    if type(EUI.RequestVisibilityUpdate) == "function" then pcall(EUI.RequestVisibilityUpdate) end
+end
+ns.EllesmereHide = EllesmereHide
+
 local function ApplyReplace(on)
     if on then
         DockEditBox(true) -- before parking ChatFrame1 (its parent)
@@ -472,6 +495,7 @@ local function ApplyReplace(on)
         DockEditBox(false)
     end
     ns.replacing = on and true or false
+    pcall(EllesmereHide)
     -- the Combat chat open: the game's combat log goes in (it could not before)
     if on and ns.Combat and ns.Combat.view and ns.Combat.view:IsShown() then ns.Combat:Embed(true) end
 end
@@ -479,19 +503,21 @@ ns.ApplyReplace = ApplyReplace
 
 function ns:SetReplace(on)
     settings.replaceChat = on and true or false
-    if not ns.blocked then ApplyReplace(settings.replaceChat) end
+    ApplyReplace(settings.replaceChat)
     if settings.replaceChat then settings.shown = true; phone:Show() end
     ns:Layout()
 end
 
--- The game hid a message from addons: show its chat until that ends.
+-- The game hid a message from addons (combat / encounter): only a banner.
+-- The game's chat (and other chat addons) stays hidden while the phone is on:
+-- the user does not want two chats, and reparenting the game's chat frames
+-- in combat is best avoided.
 function ns:Blocked(event)
     local inst = IsInInstance and select(2, IsInInstance()) or nil
     local n = (settings.secret and settings.secret.n or 0) + 1
     settings.secret = { n = n, t = time(), ev = event, combat = (InCombatLockdown and InCombatLockdown()) and true or false, instance = inst }
     if ns.blocked then return end
     ns.blocked = true
-    if ns.replacing then ApplyReplace(false) end
     banner:Show()
 end
 
@@ -499,7 +525,6 @@ function ns:Unblock()
     if not ns.blocked then return end
     ns.blocked = false
     banner:Hide()
-    if settings.replaceChat then ApplyReplace(true) end
 end
 
 ---------------------------------------------------------------------------
