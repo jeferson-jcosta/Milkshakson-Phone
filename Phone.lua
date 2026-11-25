@@ -44,7 +44,7 @@ local function TypeColor(m, c)
     local info = ChatTypeInfo and ChatTypeInfo[ev]
     if info and info.r then return { info.r, info.g, info.b } end
     if TYPE_COL[ev] then return TYPE_COL[ev] end
-    if c and c.kind == "system" then return TYPE_COL.SYSTEM end
+    if c and (c.kind == "system" or c.kind == "addon") then return TYPE_COL.SYSTEM end
 end
 ns.TypeColor = TypeColor
 
@@ -190,7 +190,7 @@ local function Sub(c)
     if c.kind == "whisper" then s = L.SUB_WHISPER
     elseif c.kind == "bn" then s = L.SUB_BN
     elseif c.kind == "channel" then s = c.chan and L.SUB_CHANNEL:format(c.chan) or L.SUB_GROUP
-    elseif c.kind == "system" or c.kind == "npc" then s = L.SUB_READONLY
+    elseif c.kind == "system" or c.kind == "npc" or c.kind == "addon" then s = L.SUB_READONLY
     else s = L.SUB_GROUP end
     if c.muted then s = s .. "  -  " .. L.MUTED end
     return s
@@ -269,7 +269,7 @@ local function SetIcon(tex, c)
         tex:SetTexture(CLASS_TEX)
         tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else
-        tex:SetTexture((c.kind == "channel" and ChannelIcon(c.name)) or KIND_ICON[c.kind] or KIND_ICON.whisper)
+        tex:SetTexture((c.kind == "channel" and ChannelIcon(c.name)) or c.icon or KIND_ICON[c.kind] or KIND_ICON.whisper)
         tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
 end
@@ -2177,6 +2177,20 @@ local function OnEvent(self, event, ...)
     end
 end
 ev:SetScript("OnEvent", function(self, event, ...) Safe(OnEvent, self, event, ...) end)
+
+-- Public: other addons put their messages in their own conversation on the
+-- phone (the game's chat window is hidden while the phone replaces it).
+-- Optional for them: they check that this function exists.
+--   MilkshaksonPhone_AddonMessage("Trader", "text", "Interface\\Icons\\INV_Misc_Coin_01")
+function MilkshaksonPhone_AddonMessage(addon, text, icon)
+    if type(addon) ~= "string" or addon == "" or type(text) ~= "string" or not settings then return false end
+    local key = "addon:" .. addon:lower()
+    local c = Store:Ensure(key, "addon", addon)
+    if icon then c.icon = icon end
+    Safe(Store.Add, Store, { key = key, kind = "addon", name = addon,
+        msg = { t = time(), text = text, info = true, ev = "SYSTEM" } }, ns:IsOpen(key))
+    return true
+end
 
 SLASH_MILKSHAKSONPHONE1 = "/phone"
 SLASH_MILKSHAKSONPHONE2 = "/mphone"
