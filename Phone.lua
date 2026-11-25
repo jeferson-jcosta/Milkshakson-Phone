@@ -2091,12 +2091,13 @@ local function OnEvent(self, event, ...)
         ns:ApplyLocale(settings.locale)
         Build()
         Place()
-        StaticPopupDialogs = StaticPopupDialogs or {}
-        StaticPopupDialogs.MILKSHAKSON_PHONE_CLEAR = {
+        -- Never assign the StaticPopupDialogs global itself: that taints every read of it
+        -- (ESC -> StaticPopup_EscapePressed -> SpellStopCasting blocked). Only add a key.
+        if StaticPopupDialogs then StaticPopupDialogs.MILKSHAKSON_PHONE_CLEAR = {
             text = "%s", button1 = YES or "Yes", button2 = NO or "No",
             timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
             OnAccept = function() openKey = nil; Store:Clear(); ns:Layout(); print(PREFIX .. L.CLEARED) end,
-        }
+        } end
         Store:OnChange(function(key)
             -- many messages per second become one redraw; the quiet System chat redraws nothing while closed
             if key == "system" and key ~= openKey and Quiet(Store:Get(key)) then return end
