@@ -135,19 +135,25 @@ end
 local fonts = {}
 local function FontScale() return tonumber(settings and settings.fontScale) or 1 end
 
+-- Messages (bubbles, day lines) have their own size (settings.chatFontScale);
+-- until it is set they follow the phone's size.
+local function ChatFontScale() return tonumber(settings and settings.chatFontScale) or FontScale() end
+local function ScaleOf(f) return (rawget(f, "group") == "chat") and ChatFontScale() or FontScale() end
+
 local function ScaleFont(f)
     local path, size, flags = f:GetFont()
     if type(size) ~= "number" or not path then return end
     f.baseSize = rawget(f, "baseSize") or size
-    f:SetFont(path, f.baseSize * FontScale(), flags or "")
+    f:SetFont(path, f.baseSize * ScaleOf(f), flags or "")
 end
 
-local function Font(parent, template, c, justify)
+local function Font(parent, template, c, justify, group)
     local f = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
     if c then f:SetTextColor(c[1], c[2], c[3]) end
     f:SetJustifyH(justify or "LEFT")
+    f.group = group
     fonts[#fonts + 1] = f
-    if FontScale() ~= 1 then ScaleFont(f) end
+    if ScaleOf(f) ~= 1 then ScaleFont(f) end
     return f
 end
 
@@ -345,6 +351,58 @@ local function Scroller(parent, onTop)
     end)
     s:SetScript("OnSizeChanged", function(_, w) if Num(w, 0) > 1 then c:SetWidth(w) end end)
     return s, c
+end
+
+-- Thin scroll bar at the right of a scroll frame: thumb sized to the visible part,
+-- drag it or click the track; the wheel over it scrolls too. Hidden when all fits.
+local function ScrollBar(s, onTop)
+    local bar = CreateFrame("Slider", nil, s:GetParent())
+    bar:SetWidth(6)
+    bar:SetPoint("TOPLEFT", s, "TOPRIGHT", 2, -2)
+    bar:SetPoint("BOTTOMLEFT", s, "BOTTOMRIGHT", 2, 2)
+    bar:SetOrientation("VERTICAL")
+    bar:SetMinMaxValues(0, 0)
+    bar:SetValue(0)
+    if bar.SetObeyStepOnDrag then bar:SetObeyStepOnDrag(false) end
+    local track = bar:CreateTexture(nil, "BACKGROUND")
+    track:SetAllPoints()
+    track:SetColorTexture(1, 1, 1, 0.05)
+    local thumb = bar:CreateTexture(nil, "OVERLAY")
+    thumb:SetColorTexture(COL.sub[1], COL.sub[2], COL.sub[3], 0.6)
+    thumb:SetSize(6, 30)
+    bar:SetThumbTexture(thumb)
+    bar.thumb = thumb
+    bar:SetScript("OnValueChanged", function(self, v)
+        if self.sync then return end
+        s:SetVerticalScroll(v)
+    end)
+    -- dragged up to the top: older messages, like the wheel at the top
+    bar:SetScript("OnMouseUp", function(self)
+        if onTop and Num(self:GetValue(), 1) <= 0 then onTop() end
+    end)
+    bar:EnableMouseWheel(true)
+    bar:SetScript("OnMouseWheel", function(_, d)
+        local f = s:GetScript("OnMouseWheel")
+        if f then f(s, d) end
+    end)
+    bar:SetScript("OnEnter", function() thumb:SetColorTexture(COL.text[1], COL.text[2], COL.text[3], 0.8) end)
+    bar:SetScript("OnLeave", function() thumb:SetColorTexture(COL.sub[1], COL.sub[2], COL.sub[3], 0.6) end)
+    local function Sync()
+        local r, h = Num(s:GetVerticalScrollRange(), 0), Num(s:GetHeight(), 0)
+        bar.sync = true
+        bar:SetMinMaxValues(0, math.max(0, r))
+        bar:SetValue(Num(s:GetVerticalScroll(), 0))
+        bar.sync = false
+        if r <= 1 or h <= 0 then bar:Hide() return end
+        bar:Show()
+        thumb:SetHeight(math.max(18, math.floor(h * h / (h + r))))
+    end
+    s:HookScript("OnVerticalScroll", Sync)
+    s:HookScript("OnScrollRangeChanged", Sync)
+    s:HookScript("OnSizeChanged", Sync)
+    bar.Sync = Sync
+    bar:Hide()
+    return bar
 end
 
 ---------------------------------------------------------------------------
@@ -1165,10 +1223,10 @@ local function Bubble(i)
     local b = CreateFrame("Frame", nil, chatContent)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetAllPoints()
-    b.name = Font(b, "GameFontNormalSmall")
+    b.name = Font(b, "GameFontNormalSmall", nil, nil, "chat")
     b.name:SetPoint("TOPLEFT", 8, -5)
-    b.text = Font(b, "GameFontHighlight", COL.text)
-    b.time = Font(b, "GameFontHighlightSmall", COL.sub, "RIGHT")
+    b.text = Font(b, "GameFontHighlight", COL.text, nil, "chat")
+    b.time = Font(b, "GameFontHighlightSmall", COL.sub, "RIGHT", "chat")
     b.time:SetPoint("BOTTOMRIGHT", -7, 4)
     b:EnableMouse(true)
     if b.SetHyperlinksEnabled then
@@ -1209,7 +1267,7 @@ local function Sep(i)
     if seps[i] then return seps[i] end
     local s = CreateFrame("Frame", nil, chatContent)
     Tex(s, "BACKGROUND", COL.info):SetAllPoints()
-    s.text = Font(s, "GameFontHighlightSmall", COL.sub, "CENTER")
+    s.text = Font(s, "GameFontHighlightSmall", COL.sub, "CENTER", "chat")
     s.text:SetPoint("CENTER")
     seps[i] = s
     return s
@@ -1220,6 +1278,7 @@ local function ScrollBottom()
         if chatScroll.UpdateScrollChildRect then chatScroll:UpdateScrollChildRect() end
         local r = chatScroll:GetVerticalScrollRange()
         if type(r) == "number" then chatScroll:SetVerticalScroll(r) end
+        if ns.chatBar then ns.chatBar.Sync() end
     end
     go()
     if C_Timer and C_Timer.After then C_Timer.After(0, go) end
@@ -2067,7 +2126,8 @@ local function Build()
     -- Combat chat (right pane, in place of the conversation)
     local cv = ns.Combat:Build(phone, listView, INPUT_H + 10, HEAD_H)
     chatScroll:SetPoint("TOPLEFT", ch, "BOTTOMLEFT", 0, -2)
-    chatScroll:SetPoint("BOTTOMRIGHT")
+    chatScroll:SetPoint("BOTTOMRIGHT", -10, 0)   -- room for the scroll bar
+    ns.chatBar = ScrollBar(chatScroll, function() Safe(ns.More, ns) end)
 
     -- Shown while the game hides messages from addons.
     banner = CreateFrame("Frame", nil, phone)

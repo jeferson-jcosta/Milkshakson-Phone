@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Chats have a thin **scroll bar** on the right (drag the thumb or click the track; dragging to the top loads older messages, like the wheel). Hidden when everything fits.
+- **Message text size** option, separate from the phone's font size (list, headers, typing bar). Until you change it, it follows the phone's size.
 - **Drawer:** the chats list starts collapsed to its icons (64 px) with each chat's initials on the icon (hover: name and last message); the arrow in the chats header opens / collapses it (the game's arrow icons). Slides when animations are on. Also in Options and `/ph drawer` (`/ph gaveta`).
 - The search box moved up into the chats header (where "Chats" is shown while minimized): the list starts higher.
 - **Loot rolls** chat: one message per item rolled on in your group — who chose Need, Greed, Disenchant or Pass (with the roll numbers, highest first) and who won it ("Everyone passed" too). Read from the game's loot messages in any client language. Option "Loot rolls chat" (on). In a dungeon or raid it sits right under the group chat.
