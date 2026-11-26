@@ -60,7 +60,7 @@ L.TIP_PLAYER     = "Click: player menu (invite, add friend, ignore, report...)"
 L.TIP_OPTIONS    = "Options"
 L.TIP_DRAWER     = "Collapse / expand the chats list (/ph drawer)"
 L.CFG_DRAWER     = "Collapsed chats list (icons only)"
-L.CFG_DRAWER_TIP = "The list shrinks to its icons with each chat's initials; hover for the name. Same as the << button in the list header."
+L.CFG_DRAWER_TIP = "The list shrinks to its icons with each chat's initials; hover for the name. Same as the arrow in the list header."
 
 L.HIDE_CHANNEL   = "Hide this channel"
 L.CHANNELS_SHOWN = "Hidden channels are shown again."

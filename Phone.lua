@@ -1457,7 +1457,7 @@ function ns:Layout()
         local hb = ns.headButtons
         if hb then
             hb.drawer:SetShown(not m)
-            hb.drawer.fs:SetText(col and ">>" or "<<")
+            ns:DrawerIcon(col)
             hb.min:ClearAllPoints()
             hb.min:SetPoint("RIGHT", col and -4 or -10, 0)
             hb.cfg:SetWidth(col and 20 or 26)
@@ -1671,10 +1671,37 @@ function ns:IsOpen(key)
     return phone and phone:IsShown() and (not settings.min or ns.peek) and openKey == key
 end
 
+-- Drawer button: the game's arrow icons (back = collapse, forward = expand);
+-- older art (spellbook page arrows) when this client has no such atlas.
+local DRAWER_ART = {
+    [false] = { atlas = "common-icon-backarrow", file = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up" },
+    [true] = { atlas = "common-icon-forwardarrow", file = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up" },
+}
+function ns:DrawerIcon(collapsed)
+    local b = ns.headButtons and ns.headButtons.drawer
+    if not b then return end
+    collapsed = collapsed and true or false
+    local art = DRAWER_ART[collapsed]
+    local hasAtlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(art.atlas)
+    if hasAtlas and b.icon.SetAtlas then
+        b.icon:SetTexCoord(0, 1, 0, 1)
+        b.icon:SetAtlas(art.atlas)
+        b.icon:SetSize(14, 14)
+        b.art = art.atlas
+    else
+        b.icon:SetTexture(art.file)
+        b.icon:SetTexCoord(0.2, 0.8, 0.2, 0.8)  -- the arrow without the round button
+        b.icon:SetSize(18, 18)
+        b.art = art.file
+    end
+    b.icon:SetVertexColor(COL.sub[1], COL.sub[2], COL.sub[3])
+    b.state = collapsed and "collapsed" or "open"
+end
+
 -- Drawer: the chats list shrinks to its icons (with the chat's initials) and back.
 local drawerAnim
 function ns:SetCollapsed(v)
-    settings.listCollapsed = v and true or nil
+    settings.listCollapsed = v and true or false   -- (false kept: the default is collapsed)
     if v and searchBox and (searchBox:GetText() or "") ~= "" then searchBox:SetText(""); searchBox:ClearFocus() end
     if not phone then return end
     local from, to = Num(listView:GetWidth(), v and LIST_W or COLL_W), ListW()
@@ -1911,9 +1938,25 @@ local function Build()
     local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
     cfgL:SetPoint("RIGHT", minB, "LEFT", -4, 0)
     -- drawer: collapse the chats list to its icons / expand it again
-    local drawer = TextButton(lh, "<<", function() ns:SetCollapsed(not settings.listCollapsed) end, L.TIP_DRAWER)
-    drawer:SetWidth(20)
-    drawer.fs:SetFontObject(GameFontHighlight)
+    local drawer = CreateFrame("Button", nil, lh)
+    drawer:SetSize(20, 26)
+    drawer.icon = drawer:CreateTexture(nil, "ARTWORK")
+    drawer.icon:SetSize(14, 14)
+    drawer.icon:SetPoint("CENTER")
+    local dhl = drawer:CreateTexture(nil, "HIGHLIGHT")
+    dhl:SetAllPoints()
+    dhl:SetColorTexture(1, 1, 1, 0.08)
+    drawer:SetScript("OnClick", function() ns:SetCollapsed(not settings.listCollapsed) end)
+    drawer:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(COL.text[1], COL.text[2], COL.text[3])
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.TIP_DRAWER)
+        GameTooltip:Show()
+    end)
+    drawer:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(COL.sub[1], COL.sub[2], COL.sub[3])
+        GameTooltip_Hide()
+    end)
     drawer:SetPoint("RIGHT", cfgL, "LEFT", 0, 0)
     ns.headButtons = { min = minB, cfg = cfgL, drawer = drawer }
     -- search box, in the header (where "Chats" is while minimized)

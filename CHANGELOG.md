@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- **Drawer:** the `<<` button in the chats header collapses the list to its icons (64 px) with each chat's initials on the icon (hover: name and last message); `>>` opens it again. Slides when animations are on. Also in Options and `/ph drawer` (`/ph gaveta`).
+- **Drawer:** the chats list starts collapsed to its icons (64 px) with each chat's initials on the icon (hover: name and last message); the arrow in the chats header opens / collapses it (the game's arrow icons). Slides when animations are on. Also in Options and `/ph drawer` (`/ph gaveta`).
 - The search box moved up into the chats header (where "Chats" is shown while minimized): the list starts higher.
 - **Loot rolls** chat: one message per item rolled on in your group — who chose Need, Greed, Disenchant or Pass (with the roll numbers, highest first) and who won it ("Everyone passed" too). Read from the game's loot messages in any client language. Option "Loot rolls chat" (on). In a dungeon or raid it sits right under the group chat.
 - The Milkshakson addons show their messages in one "Milkshakson-Addons" conversation on the phone, each line tagged with the addon: `MilkshaksonPhone_AddonMessage(addon, text)` (used by Milkshakson-Trader). The game's chat window is hidden while the phone replaces it, so their chat messages were lost.

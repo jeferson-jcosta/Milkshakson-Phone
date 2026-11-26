@@ -28,6 +28,7 @@ S.DEFAULTS = {
     fitBubbles = false,   -- bubbles fit their text (off: whole width, edges line up)
     align = "messenger", -- messages: messenger (yours right) / left / right        -- font size of the phone (0.8 - 1.6)    -- text colored by chat type (guild green, party blue...)
     maxMsgs = 200,        -- messages kept per conversation
+    listCollapsed = true, -- chats list as icons (drawer); the arrow in its header opens it
     w = 560, h = 480,
 }
 
