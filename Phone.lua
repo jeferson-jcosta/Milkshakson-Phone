@@ -9,6 +9,7 @@ local PREFIX = "|cff25d366[Phone]|r "
 local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
+local COLL_W = 64 -- chats list collapsed (drawer): icons only
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
 -- Dark messenger palette.
@@ -154,6 +155,8 @@ ns.Font = Font
 
 local function RowH() return math.floor(ROW_H * math.max(1, FontScale()) + 0.5) end
 ns.Fonts, ns.RowH = fonts, RowH
+local function ListW() return (settings and settings.listCollapsed) and COLL_W or LIST_W end
+ns.ListW = ListW
 
 local function ClassColor(cls)
     if not cls then return nil end
@@ -766,6 +769,22 @@ local function RowMenu(owner, c)
     end
 end
 
+-- Two letters for a chat in the collapsed list: first letters of the first two
+-- words ("Trade - City" -> TC), or the first two of a single word ("Guild" -> Gu).
+local function FirstChar(w) return w:match("^[%z\1-\127\194-\244][\128-\191]*") or "" end
+local function Initials(c)
+    local t = tostring(Title(c) or "")
+    t = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("^%s*%d+%.%s*", "")
+    local words = {}
+    for w in t:gmatch("[^%s%-%._/:,()%[%]]+") do words[#words + 1] = w end
+    if #words == 0 then return "?" end
+    if #words >= 2 then return (FirstChar(words[1]):upper() .. FirstChar(words[2]):upper()) end
+    local a = FirstChar(words[1])
+    local b = FirstChar(words[1]:sub(#a + 1))
+    return a:upper() .. b
+end
+ns.Initials = Initials
+
 local function Row(i)
     if rows[i] then return rows[i] end
     local r = CreateFrame("Button", nil, listContent)
@@ -800,6 +819,25 @@ local function Row(i)
     r.badge.bg = bg
     r.badge.n = Font(r.badge, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
     r.badge.n:SetPoint("CENTER")
+    -- collapsed list: initials on a dark strip at the bottom of the icon, full name on hover
+    r.iniBg = r:CreateTexture(nil, "ARTWORK", nil, 7)
+    r.iniBg:SetColorTexture(0, 0, 0, 0.7)
+    r.iniBg:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMLEFT")
+    r.iniBg:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT")
+    r.iniBg:SetHeight(13)
+    r.iniBg:Hide()
+    r.ini = Font(r, "GameFontHighlightSmall", COL.text, "CENTER")
+    r.ini:SetPoint("BOTTOM", r.icon, "BOTTOM", 0, 1)
+    r.ini:Hide()
+    r:SetScript("OnEnter", function(self)
+        if not (settings.listCollapsed and self.conv) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(Title(self.conv))
+        local pv = self.prev:GetText()
+        if pv and pv ~= "" then GameTooltip:AddLine(pv, 0.7, 0.7, 0.7, true) end
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
     local line = Tex(r, "BORDER", COL.sep)
     line:SetHeight(1)
     line:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, -6)
@@ -841,7 +879,8 @@ ns.Archived = Archived
 ns.listMode = "main"
 
 RenderList = function()
-    FitWidth(listScroll, listContent, LIST_W)
+    FitWidth(listScroll, listContent, ListW())
+    local col = settings.listCollapsed
     local list = {}
     local arch = { key = "@archive", kind = "archive", msgs = {}, unread = 0, n = 0 }
     local inArchive = ns.listMode == "archived"
@@ -942,6 +981,16 @@ RenderList = function()
         r:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, -(i - 1) * RowH())
         r:SetPoint("RIGHT", listContent, "RIGHT")
         SetIcon(r.icon, c)
+        r.icon:ClearAllPoints()
+        r.icon:SetPoint("LEFT", col and math.floor((COLL_W - 32) / 2) or 8, 0)
+        r.name:SetShown(not col)
+        r.prev:SetShown(not col)
+        r.time:SetShown(not col)
+        r.ini:SetShown(col and true or false)
+        r.iniBg:SetShown(col and true or false)
+        if col then r.ini:SetText(Initials(c)) end
+        r.badge:ClearAllPoints()
+        if col then r.badge:SetPoint("CENTER", r.icon, "TOPRIGHT", -1, -1) else r.badge:SetPoint("BOTTOMRIGHT", -8, 6) end
         r.name:SetText(Title(c))
         local cc = NameColor(c)
         r.name:SetTextColor(cc[1], cc[2], cc[3])
@@ -973,7 +1022,7 @@ RenderList = function()
     for i = #list + 1, #rows do rows[i]:Hide() end
     listContent:SetHeight(math.max(1, #list * RowH()))
     emptyText:SetText(q and L.SEARCH_NONE or L.EMPTY)
-    emptyText:SetShown(#list == 0)
+    emptyText:SetShown(#list == 0 and not col)
     return #list
 end
 
@@ -1290,7 +1339,7 @@ local function RenderChat(mode)
     chatSub:SetText(Sub(c))
     SetIcon(chatIcon, c)
 
-    local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - LIST_W)
+    local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - ListW())
     -- long messages use the whole width (8 px margin each side + 8 px padding inside), so edges line up
     local maxW = math.floor(width) - 16 - 18
     local msgs = c.msgs
@@ -1397,11 +1446,24 @@ function ns:Layout()
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
         else
             listView:SetPoint("BOTTOMLEFT", phone, "BOTTOMLEFT", 0, INPUT_H + 10)
-            listView:SetWidth(LIST_W)
+            if not ns.listAnimating then listView:SetWidth(ListW()) end
         end
         listView:Show()
         listScroll:SetShown(not m)
-        if searchBox then searchBox:SetShown(not m) end
+        -- header: "Chats" + pills when minimized; search (or, collapsed, nothing) when open
+        local col = settings.listCollapsed and not m
+        listTitle:SetShown(m and true or false)
+        if searchBox then searchBox:SetShown(not m and not col) end
+        local hb = ns.headButtons
+        if hb then
+            hb.drawer:SetShown(not m)
+            hb.drawer.fs:SetText(col and ">>" or "<<")
+            hb.min:ClearAllPoints()
+            hb.min:SetPoint("RIGHT", col and -4 or -10, 0)
+            hb.cfg:SetWidth(col and 20 or 26)
+            hb.cfg:ClearAllPoints()
+            hb.cfg:SetPoint("RIGHT", hb.min, "LEFT", col and 0 or -4, 0)
+        end
         chatView:SetShown(not m and openKey ~= "combat")
         if not m and openKey == "combat" then ns.Combat:Show() else ns.Combat:Hide() end
         inputBar:SetShown(not m)
@@ -1609,6 +1671,45 @@ function ns:IsOpen(key)
     return phone and phone:IsShown() and (not settings.min or ns.peek) and openKey == key
 end
 
+-- Drawer: the chats list shrinks to its icons (with the chat's initials) and back.
+local drawerAnim
+function ns:SetCollapsed(v)
+    settings.listCollapsed = v and true or nil
+    if v and searchBox and (searchBox:GetText() or "") ~= "" then searchBox:SetText(""); searchBox:ClearFocus() end
+    if not phone then return end
+    local from, to = Num(listView:GetWidth(), v and LIST_W or COLL_W), ListW()
+    local dur = tonumber(settings.animTime) or 0.25
+    local min = settings.min and not ns.peek
+    if not drawerAnim then
+        drawerAnim = CreateFrame("Frame")
+        drawerAnim:Hide()
+        drawerAnim:SetScript("OnUpdate", function(self, el)
+            self.t = self.t + (el or 0)
+            local p = math.min(1, self.t / self.dur)
+            p = 1 - (1 - p) * (1 - p)
+            listView:SetWidth(self.from + (self.to - self.from) * p)
+            if p >= 1 then
+                self:Hide()
+                ns.listAnimating = nil
+                ns:Layout()
+                ns:Refresh()
+            end
+        end)
+    end
+    if settings.animate and dur > 0 and not min and phone:IsShown() and math.abs(from - to) >= 1 then
+        drawerAnim.from, drawerAnim.to, drawerAnim.t, drawerAnim.dur = from, to, 0, dur
+        ns.listAnimating = true
+        ns:Layout()
+        RenderList()
+        drawerAnim:Show()
+    else
+        drawerAnim:Hide()
+        ns.listAnimating = nil
+        ns:Layout()
+        ns:Refresh()
+    end
+end
+
 function ns:Minimize(v)
     if ns.peek then -- "_" while opened by the mouse: back to minimized
         ns.peek = false
@@ -1791,6 +1892,7 @@ local function Build()
 
     -- List
     listView = CreateFrame("Frame", nil, phone)
+    if listView.SetClipsChildren then listView:SetClipsChildren(true) end -- rows stay inside while the drawer slides
     listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
     -- minimized: a click on "Chats" restores the phone
@@ -1808,11 +1910,17 @@ local function Build()
     -- options: always here (also minimized and with the Combat chat open)
     local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
     cfgL:SetPoint("RIGHT", minB, "LEFT", -4, 0)
-    -- search box
-    local sb = CreateFrame("EditBox", nil, listView)
+    -- drawer: collapse the chats list to its icons / expand it again
+    local drawer = TextButton(lh, "<<", function() ns:SetCollapsed(not settings.listCollapsed) end, L.TIP_DRAWER)
+    drawer:SetWidth(20)
+    drawer.fs:SetFontObject(GameFontHighlight)
+    drawer:SetPoint("RIGHT", cfgL, "LEFT", 0, 0)
+    ns.headButtons = { min = minB, cfg = cfgL, drawer = drawer }
+    -- search box, in the header (where "Chats" is while minimized)
+    local sb = CreateFrame("EditBox", nil, lh)
     sb:SetHeight(22)
-    sb:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 8, -4)
-    sb:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT", -8, -4)
+    sb:SetPoint("LEFT", lh, "LEFT", 8, 0)
+    sb:SetPoint("RIGHT", drawer, "LEFT", -4, 0)
     sb:SetAutoFocus(false)
     sb:SetFontObject(GameFontHighlightSmall)
     sb:SetTextInsets(22, 20, 0, 0)
@@ -1850,7 +1958,7 @@ local function Build()
     ns.searchBox = sb
 
     listScroll, listContent = Scroller(listView)
-    listScroll:SetPoint("TOPLEFT", sb, "BOTTOMLEFT", -8, -4)
+    listScroll:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 0, -2)
     listScroll:SetPoint("BOTTOMRIGHT")
     emptyText = Font(listContent, "GameFontHighlightSmall", COL.sub, "CENTER")
     emptyText:SetPoint("TOPLEFT", 20, -30)
@@ -2257,6 +2365,8 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
             .. ", mouse over " .. tostring(phone.IsMouseOver and phone:IsMouseOver()) .. ", ticks " .. tostring(ns.hoverTicks or 0)
         print(PREFIX .. line)
         if errorBox then errorBox.text:SetText(L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF) .. "\n" .. line .. "\n\n(click to close)"); errorBox:Show() end
+    elseif msg == "drawer" or msg == "gaveta" then
+        ns:SetCollapsed(not settings.listCollapsed)
     elseif msg == "rolls" then
         -- loot rolls diagnostics, also into the Milkshakson-Addons conversation
         if ns.Rolls then

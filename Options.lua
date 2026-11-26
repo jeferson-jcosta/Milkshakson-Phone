@@ -25,6 +25,7 @@ function ns:BuildOptions(db)
     UI:Slider(p, L.CFG_ANIM_TIME, 0.05, 1, 0.05, "%.2f s", function() return db.animTime end,
         function(v) db.animTime = math.floor(v * 100 + 0.5) / 100 end, L.CFG_ANIM_TIME_TIP)
     UI:Check(p, L.CFG_LOCK, nil, function() return db.locked end, function(v) db.locked = v or nil; ns:Layout() end)
+    UI:Check(p, L.CFG_DRAWER, L.CFG_DRAWER_TIP, function() return db.listCollapsed end, function(v) ns:SetCollapsed(v) end)
     UI:Buttons(p, {
         { L.CFG_RESET, function() SlashCmdList.MILKSHAKSONPHONE("reset") end },
     })
