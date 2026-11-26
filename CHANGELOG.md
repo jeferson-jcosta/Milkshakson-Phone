@@ -1,10 +1,11 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- New layout: one **top bar** across the whole phone (drawer arrow over the icons column, search, options, -/+); the open chat's header (icon, name, copy) sits inside the chat pane, under it. The minimized phone is a bit lower (34 px bar).
 - Chats have a thin **scroll bar** on the right (drag the thumb or click the track; dragging to the top loads older messages, like the wheel). Hidden when everything fits.
 - **Message text size** option, separate from the phone's font size (list, headers, typing bar). Until you change it, it follows the phone's size.
 - **Drawer:** the chats list starts collapsed to its icons (64 px) with each chat's initials on the icon (hover: name and last message); the arrow in the chats header opens / collapses it (the game's arrow icons). Slides when animations are on. Also in Options and `/ph drawer` (`/ph gaveta`).
-- The search box moved up into the chats header (where "Chats" is shown while minimized): the list starts higher.
+- The search box moved up into the top bar (where "Chats" is shown while minimized); it also works with the list collapsed.
 - **Loot rolls** chat: one message per item rolled on in your group — who chose Need, Greed, Disenchant or Pass (with the roll numbers, highest first) and who won it ("Everyone passed" too). Read from the game's loot messages in any client language. Option "Loot rolls chat" (on). In a dungeon or raid it sits right under the group chat.
 - The Milkshakson addons show their messages in one "Milkshakson-Addons" conversation on the phone, each line tagged with the addon: `MilkshaksonPhone_AddonMessage(addon, text)` (used by Milkshakson-Trader). The game's chat window is hidden while the phone replaces it, so their chat messages were lost.
 

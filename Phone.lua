@@ -10,6 +10,7 @@ local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
+local TOP_H = 34  -- top bar over both panes: drawer, search, options, -/+ (all that shows when minimized)
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
 -- Dark messenger palette.
@@ -449,7 +450,7 @@ function ns:PlaceEditBox(min)
     e:ClearAllPoints()
     if min == "header" then -- typing while minimized: over the header, the phone stays small
         e:SetPoint("TOPLEFT", phone, "TOPLEFT", 4, -STATUS_H - 4)
-        e:SetPoint("BOTTOMRIGHT", phone, "TOPRIGHT", -4, -STATUS_H - HEAD_H + 4)
+        e:SetPoint("BOTTOMRIGHT", phone, "TOPRIGHT", -4, -STATUS_H - TOP_H + 4)
     elseif min then
         e:SetPoint("TOPLEFT", phone, "BOTTOMLEFT", 0, -40)
         e:SetPoint("TOPRIGHT", phone, "BOTTOMRIGHT", 0, -40)
@@ -1500,7 +1501,7 @@ function ns:Layout()
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
-        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H)
+        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H)
         if m then
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
         else
@@ -1509,19 +1510,14 @@ function ns:Layout()
         end
         listView:Show()
         listScroll:SetShown(not m)
-        -- header: "Chats" + pills when minimized; search (or, collapsed, nothing) when open
+        -- top bar: "Chats" + pills when minimized; drawer arrow + search when open
         local col = settings.listCollapsed and not m
         listTitle:SetShown(m and true or false)
-        if searchBox then searchBox:SetShown(not m and not col) end
+        if searchBox then searchBox:SetShown(not m) end
         local hb = ns.headButtons
         if hb then
             hb.drawer:SetShown(not m)
             ns:DrawerIcon(col)
-            hb.min:ClearAllPoints()
-            hb.min:SetPoint("RIGHT", col and -4 or -10, 0)
-            hb.cfg:SetWidth(col and 20 or 26)
-            hb.cfg:ClearAllPoints()
-            hb.cfg:SetPoint("RIGHT", hb.min, "LEFT", col and 0 or -4, 0)
         end
         chatView:SetShown(not m and openKey ~= "combat")
         if not m and openKey == "combat" then ns.Combat:Show() else ns.Combat:Hide() end
@@ -1531,7 +1527,7 @@ function ns:Layout()
     end
     if min then
         -- minimizing: the content fades out while the height goes down, then it is hidden
-        ns:AnimateHeight(STATUS_H + HEAD_H, "out", function() Panes(true) end)
+        ns:AnimateHeight(STATUS_H + TOP_H, "out", function() Panes(true) end)
     else
         Panes(false)
         ns:AnimateHeight(settings.h, "in")
@@ -1761,7 +1757,6 @@ end
 local drawerAnim
 function ns:SetCollapsed(v)
     settings.listCollapsed = v and true or false   -- (false kept: the default is collapsed)
-    if v and searchBox and (searchBox:GetText() or "") ~= "" then searchBox:SetText(""); searchBox:ClearFocus() end
     if not phone then return end
     local from, to = Num(listView:GetWidth(), v and LIST_W or COLL_W), ListW()
     local dur = tonumber(settings.animTime) or 0.25
@@ -1905,7 +1900,7 @@ local function Place()
     else
         phone:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 32, 96)
     end
-    phone:SetSize(settings.w, settings.min and (STATUS_H + HEAD_H) or settings.h)
+    phone:SetSize(settings.w, settings.min and (STATUS_H + TOP_H) or settings.h)
 end
 ns.Place = Place
 
@@ -1979,15 +1974,24 @@ local function Build()
     -- List
     listView = CreateFrame("Frame", nil, phone)
     if listView.SetClipsChildren then listView:SetClipsChildren(true) end -- rows stay inside while the drawer slides
-    listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
+    listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT", 0, -TOP_H)
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
-    -- minimized: a click on "Chats" restores the phone
-    local lh = Header(listView, function()
+    -- Top bar over both panes (the chat's own header is inside its pane).
+    -- Minimized: a click on "Chats" restores the phone.
+    local lh = Header(phone, function()
         if settings.min then
             ns.peek = false
             ns:Minimize(false)
         end
     end)
+    lh:ClearAllPoints()
+    lh:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
+    lh:SetPoint("TOPRIGHT", status, "BOTTOMRIGHT")
+    lh:SetHeight(TOP_H)
+    local lhLine = Tex(lh, "BORDER", COL.sep)
+    lhLine:SetHeight(1)
+    lhLine:SetPoint("BOTTOMLEFT")
+    lhLine:SetPoint("BOTTOMRIGHT")
     listHead = lh
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
     listTitle:SetPoint("LEFT", 12, 0)
@@ -2016,13 +2020,13 @@ local function Build()
         self.icon:SetVertexColor(COL.sub[1], COL.sub[2], COL.sub[3])
         GameTooltip_Hide()
     end)
-    drawer:SetPoint("RIGHT", cfgL, "LEFT", 0, 0)
+    drawer:SetPoint("LEFT", lh, "LEFT", math.floor((COLL_W - 20) / 2), 0)  -- over the icons column
     ns.headButtons = { min = minB, cfg = cfgL, drawer = drawer }
     -- search box, in the header (where "Chats" is while minimized)
     local sb = CreateFrame("EditBox", nil, lh)
     sb:SetHeight(22)
-    sb:SetPoint("LEFT", lh, "LEFT", 8, 0)
-    sb:SetPoint("RIGHT", drawer, "LEFT", -4, 0)
+    sb:SetPoint("LEFT", drawer, "RIGHT", 10, 0)
+    sb:SetWidth(LIST_W)
     sb:SetAutoFocus(false)
     sb:SetFontObject(GameFontHighlightSmall)
     sb:SetTextInsets(22, 20, 0, 0)
@@ -2060,7 +2064,7 @@ local function Build()
     ns.searchBox = sb
 
     listScroll, listContent = Scroller(listView)
-    listScroll:SetPoint("TOPLEFT", lh, "BOTTOMLEFT", 0, -2)
+    listScroll:SetPoint("TOPLEFT", listView, "TOPLEFT", 0, -2)
     listScroll:SetPoint("BOTTOMRIGHT")
     emptyText = Font(listContent, "GameFontHighlightSmall", COL.sub, "CENTER")
     emptyText:SetPoint("TOPLEFT", 20, -30)
