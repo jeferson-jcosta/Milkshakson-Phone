@@ -895,7 +895,9 @@ RenderList = function()
                     stale[#stale + 1] = c
                 else
                     fresh[#fresh + 1] = c
-                    if c.kind == "channel" then lastChan = #fresh end
+                    -- after the last channel and after the fresh private chats
+                    -- (joined channels are listed on top, before all private chats)
+                    if c.kind == "channel" or c.kind == "whisper" or c.kind == "bn" then lastChan = #fresh end
                 end
             end
             if #stale > 0 then
@@ -2255,6 +2257,14 @@ SlashCmdList.MILKSHAKSONPHONE = function(msg)
             .. ", mouse over " .. tostring(phone.IsMouseOver and phone:IsMouseOver()) .. ", ticks " .. tostring(ns.hoverTicks or 0)
         print(PREFIX .. line)
         if errorBox then errorBox.text:SetText(L.STATUS:format(convs, msgs, Store:Unread(), ns.replacing and L.ON or L.OFF) .. "\n" .. line .. "\n\n(click to close)"); errorBox:Show() end
+    elseif msg == "rolls" then
+        -- loot rolls diagnostics, also into the Milkshakson-Addons conversation
+        if ns.Rolls then
+            for _, line in ipairs(ns.Rolls:Report()) do
+                print(PREFIX .. line)
+                MilkshaksonPhone_AddonMessage("Phone", line)
+            end
+        end
     elseif msg == "probe" then
         local ok, missing = ns:Probe()
         print(PREFIX .. L.PROBE_OK:format(#ok, table.concat(ok, ", ")))

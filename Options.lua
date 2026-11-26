@@ -37,6 +37,9 @@ function ns:BuildOptions(db)
     UI:Check(p, L.CFG_NPC, nil, function() return db.showNPC end, function(v) db.showNPC = v; if not v and not db.showSystem then Hide("system", v) end; R() end)
     UI:Check(p, L.CFG_COMBATLOG, L.CFG_COMBATLOG_TIP, function() return db.combatLog end, function(v) db.combatLog = v; if not v and ns.CloseKind then ns:CloseKind("combat") end; R() end)
     UI:Check(p, L.CFG_ROLLS, L.CFG_ROLLS_TIP, function() return db.showRolls end, function(v) db.showRolls = v; if not v and ns.CloseKind then ns:CloseKind("rolls") end; R() end)
+    UI:Buttons(p, {
+        { L.CFG_ROLLS_DIAG, function() SlashCmdList.MILKSHAKSONPHONE("rolls") end },
+    })
     UI:Check(p, L.CFG_MONITOR, L.CFG_MONITOR_TIP, function() return db.monitorSystem end, function(v) db.monitorSystem = v; R() end)
     UI:Check(p, L.CFG_COLORS, L.CFG_COLORS_TIP, function() return db.typeColors end, function(v) db.typeColors = v; if ns.Redraw then ns:Redraw() end end)
     p.y = p.y - 8

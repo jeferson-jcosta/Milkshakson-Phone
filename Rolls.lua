@@ -9,7 +9,7 @@ ns.Rolls = R
 
 local KEY = "rolls"
 local OPEN_TIME = 600          -- an item's rolls stay open this long (seconds)
-local issecret = issecretvalue or function() return false end
+local function issecret(v) local f = issecretvalue return f ~= nil and f(v) or false end
 
 -- global format string -> what each argument is (by argument number)
 local FORMATS = {
@@ -119,13 +119,16 @@ function R:Text(e)
     return table.concat(lines, "\n")
 end
 
-local function Find(item)
+-- The open message of this item; a loot-history drop (id) also finds its own
+-- message after it was won, so later updates of that drop don't repeat it.
+local function Find(item, id)
     local c = ns.Store:Get(KEY)
     if not c then return nil end
     local now = time()
     for i = #c.msgs, math.max(1, #c.msgs - 30), -1 do
         local m = c.msgs[i]
         local e = m.roll
+        if e and id and e.id == id then return m end
         if e and e.item == item and not e.done and now - (m.t or 0) < OPEN_TIME then return m end
     end
 end
@@ -164,11 +167,125 @@ function R:OnLoot(text)
     return m
 end
 
+---------------------------------------------------------------------------
+-- Second source: the game's loot history (C_LootHistory, the "Loot" window).
+-- Works even when the loot chat lines are hidden (secret) inside instances.
+---------------------------------------------------------------------------
+local STATE = { [0] = "need", [1] = "need", [2] = "transmog", [3] = "greed", [5] = "pass" }
+local function Plain(v) return v ~= nil and not issecret(v) end
+
+function R:FromDrop(info, id)
+    local s = ns.settings
+    if not (s and s.showRolls) or type(info) ~= "table" then return end
+    local item = info.itemHyperlink
+    if not Plain(item) or type(item) ~= "string" or item == "" then return end
+    local m = Find(item, id)
+    local new = not m
+    if new then m = { t = time(), info = true, ev = "LOOT", roll = { item = item, rolls = {} } } end
+    local e = m.roll
+    e.id = e.id or id
+    for _, ri in ipairs(info.rollInfos or {}) do
+        local name = ri.playerName
+        local kind = STATE[ri.state]
+        if Plain(name) and kind then
+            local roll = Plain(ri.roll) and ri.roll or nil
+            local old = e.rolls[name] or {}
+            e.rolls[name] = { kind = kind, roll = roll or old.roll }
+        end
+    end
+    local w = info.winner
+    if type(w) == "table" and Plain(w.playerName) then
+        e.winner, e.done = w.playerName, true
+        e.winKind = STATE[w.state] or (e.rolls[w.playerName] and e.rolls[w.playerName].kind)
+        e.winRoll = Plain(w.roll) and w.roll or (e.rolls[w.playerName] and e.rolls[w.playerName].roll)
+    elseif info.allPassed then
+        e.allpass, e.done = true, true
+    end
+    m.text = R:Text(e)
+    if new then
+        ns.Store:Ensure(KEY, "rolls")
+        ns.Store:Add({ key = KEY, kind = "rolls", msg = m }, ns.IsOpen and ns:IsOpen(KEY))
+    else
+        if ns.RedrawKey then ns:RedrawKey(KEY) end
+        ns.Store:Changed(KEY)
+    end
+    return m
+end
+
+local function Drop(enc, list)
+    local H = C_LootHistory
+    if not (H and H.GetSortedInfoForDrop) then return nil end
+    local ok, info = pcall(H.GetSortedInfoForDrop, enc, list)
+    return ok and info or nil
+end
+
+---------------------------------------------------------------------------
+-- Diagnostics: last loot events, kept account-wide (MilkshaksonPhoneDB.rollsLog)
+-- so they can be read from SavedVariables and shown with /phone rolls.
+---------------------------------------------------------------------------
+local function Log(entry)
+    local s = ns.settings
+    if not s then return end
+    s.rollsLog = s.rollsLog or {}
+    entry.t = time()
+    local inst = IsInInstance and select(2, IsInInstance()) or nil
+    entry.i = inst
+    entry.c = InCombatLockdown and InCombatLockdown() or nil
+    table.insert(s.rollsLog, entry)
+    while #s.rollsLog > 40 do table.remove(s.rollsLog, 1) end
+end
+
+local function Esc(t) return (tostring(t):gsub("|", "||")) end
+
+function R:Report()
+    local s = ns.settings or {}
+    local log = s.rollsLog or {}
+    local H = C_LootHistory
+    local lines = {}
+    lines[#lines + 1] = ("events: %d - C_LootHistory: %s - formats: %d"):format(#log,
+        (H and H.GetSortedInfoForDrop) and "yes" or "no", #Patterns())
+    for i = math.max(1, #log - 9), #log do
+        local e = log[i]
+        lines[#lines + 1] = date("%H:%M:%S", e.t or 0) .. " " .. (e.ev or "?") .. " [" .. tostring(e.i or "-") .. (e.c and ",combat" or "") .. "] "
+            .. (e.secret and "SECRET" or (e.text or e.h or "")) .. (e.m and (" -> " .. e.m) or (e.ev == "CHAT_MSG_LOOT" and " -> no match" or ""))
+    end
+    return lines
+end
+
 local f = CreateFrame("Frame")
 function R:Start()
-    pcall(f.RegisterEvent, f, "CHAT_MSG_LOOT")
-    f:SetScript("OnEvent", function(_, _, text)
-        local ok, err = pcall(R.OnLoot, R, text)
+    for _, e in ipairs({ "CHAT_MSG_LOOT", "LOOT_HISTORY_UPDATE_DROP", "LOOT_HISTORY_UPDATE_ENCOUNTER", "START_LOOT_ROLL" }) do
+        pcall(f.RegisterEvent, f, e)
+    end
+    f:SetScript("OnEvent", function(_, event, a, b)
+        local ok, err = pcall(function()
+            if event == "CHAT_MSG_LOOT" then
+                local secret = issecret(a)
+                local r = not secret and R:Parse(a) or nil
+                if secret or (type(a) == "string" and a:find("|Hitem:")) then
+                    Log({ ev = event, secret = secret or nil, text = not secret and Esc(a):sub(1, 160) or nil,
+                        m = r and (r.what .. (r.kind and ("/" .. r.kind) or "")) or nil })
+                end
+                if r then R:OnLoot(a) end
+            elseif event == "LOOT_HISTORY_UPDATE_DROP" then
+                local info = Drop(a, b)
+                Log({ ev = event, h = tostring(a) .. ":" .. tostring(b) .. (info and (" rolls=" .. #(info.rollInfos or {})) or " no info") })
+                if info then R:FromDrop(info, tostring(a) .. ":" .. tostring(b)) end
+            elseif event == "LOOT_HISTORY_UPDATE_ENCOUNTER" then
+                local H = C_LootHistory
+                local drops = H and H.GetSortedDropsForEncounter and select(2, pcall(H.GetSortedDropsForEncounter, a))
+                Log({ ev = event, h = tostring(a) .. (type(drops) == "table" and (" drops=" .. #drops) or " no drops") })
+                if type(drops) == "table" then
+                    for _, d in ipairs(drops) do
+                        local info = (d.rollInfos and d) or Drop(a, d.lootListID)
+                        if info then R:FromDrop(info, tostring(a) .. ":" .. tostring(info.lootListID or d.lootListID)) end
+                    end
+                end
+            elseif event == "START_LOOT_ROLL" then
+                local link = GetLootRollItemLink and select(2, pcall(GetLootRollItemLink, a))
+                Log({ ev = event, h = tostring(a) .. " " .. (Plain(link) and Esc(link) or "?") })
+            end
+        end)
         if not ok then geterrorhandler()(err) end
     end)
 end
