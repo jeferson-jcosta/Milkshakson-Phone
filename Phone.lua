@@ -282,7 +282,9 @@ end
 ns.Professions = Professions
 
 function ns:UpdateProfessions()
-    if profText then profText:SetText(Professions()) end
+    if not profText then return end
+    local on = not (settings and settings.showProfLevels == false)
+    profText:SetText(on and Professions() or "")
 end
 
 local function Sub(c)
