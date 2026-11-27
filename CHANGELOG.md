@@ -1,6 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- **Alliance / Horde theme** (Options > Theme: My faction (default), Alliance, Horde, Messenger (the old green)): Alliance = dark navy with gold, your messages in blue; Horde = dark red with amber, your messages in red; the faction crest very faint behind the messages. Switches live.
+- **Round icons** in the chats list and the chat header, with a thin ring (the player's class color for private chats, the theme color for the rest). Cleaner list: softer separators, the open chat marked with a thin accent bar.
 - **Auction House chat** (option, on): your AH purchases, sales, auctions created / expired / cancelled and outbids in their own conversation, with a badge and a pill while minimized. From the AH events (the game prints them without a chat event, so they were lost while the phone replaced the chat) and the AH system messages (same text twice = once). Other addons can add lines: `MilkshaksonPhone_AuctionMessage(text)` (Milkshakson-Trader sends its purchases and sales with prices).
 - Drawer initials: joined words count as words ("LocalDefense" -> LD, not LO; "LookingForGroup" -> LF).
 - **Professions** chat: every skill up ("Tailoring rose to 45") gets its own conversation with a badge and preview, and a pill while the phone is minimized (they used to go to the quiet System chat). Option "Professions chat (skill ups)" (on); any client language.

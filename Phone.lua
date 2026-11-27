@@ -19,8 +19,50 @@ local COL = {
     inB = { 0.122, 0.173, 0.2 }, outB = { 0.0, 0.361, 0.294 }, info = { 0.09, 0.14, 0.16 },
     text = { 0.91, 0.93, 0.94 }, sub = { 0.53, 0.59, 0.63 }, accent = { 0.145, 0.827, 0.4 },
     sep = { 0.14, 0.19, 0.21 }, input = { 0.165, 0.224, 0.259 }, warn = { 0.55, 0.32, 0.05 },
+    ring = { 0.25, 0.35, 0.4 },
 }
 local settings
+
+-- Themes (settings.theme): auto = your faction, alliance (navy + gold), horde
+-- (dark red + amber), messenger (the original green). The colors are changed in
+-- place inside COL, so everything drawn with a COL color is repainted (Paint).
+local PALETTES = {
+    alliance = {
+        bg = { 0.035, 0.051, 0.086 }, status = { 0.02, 0.03, 0.055 }, head = { 0.067, 0.098, 0.157 },
+        inB = { 0.106, 0.149, 0.235 }, outB = { 0.118, 0.29, 0.58 }, info = { 0.067, 0.094, 0.149 },
+        text = { 0.92, 0.94, 0.97 }, sub = { 0.56, 0.63, 0.73 }, accent = { 0.98, 0.78, 0.27 },
+        sep = { 0.11, 0.15, 0.22 }, input = { 0.09, 0.13, 0.2 }, ring = { 0.85, 0.68, 0.25 },
+    },
+    horde = {
+        bg = { 0.075, 0.035, 0.035 }, status = { 0.05, 0.02, 0.02 }, head = { 0.15, 0.065, 0.06 },
+        inB = { 0.2, 0.1, 0.09 }, outB = { 0.52, 0.13, 0.1 }, info = { 0.13, 0.06, 0.055 },
+        text = { 0.96, 0.92, 0.9 }, sub = { 0.72, 0.6, 0.56 }, accent = { 1, 0.6, 0.18 },
+        sep = { 0.22, 0.11, 0.1 }, input = { 0.18, 0.09, 0.08 }, ring = { 0.85, 0.32, 0.18 },
+    },
+    messenger = {},
+}
+for k, v in pairs(COL) do PALETTES.messenger[k] = { v[1], v[2], v[3] } end
+local CREST = { alliance = "Interface\\Timer\\Alliance-Logo", horde = "Interface\\Timer\\Horde-Logo" }
+local COLSET = {}
+for _, v in pairs(COL) do COLSET[v] = true end
+local painted = {}   -- { texture, COL color, alpha }
+
+local function ThemeName()
+    local t = settings and settings.theme or "auto"
+    if t == "auto" then
+        local f = UnitFactionGroup and UnitFactionGroup("player")
+        t = f == "Horde" and "horde" or "alliance"
+    end
+    return PALETTES[t] and t or "alliance"
+end
+ns.ThemeName = ThemeName
+
+local function UseTheme(name)
+    for k, v in pairs(PALETTES[name] or {}) do
+        local c = COL[k]
+        if c then c[1], c[2], c[3] = v[1], v[2], v[3] end
+    end
+end
 
 -- Text colors per chat type: the game's own (ChatTypeInfo, follows the
 -- player's chat color settings), with the default colors as fallback.
@@ -82,6 +124,7 @@ local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", 
 local phone, clockText, zoneText, banner, grip
 local listView, listTitle, listScroll, listContent, emptyText, listHead, searchBox
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
+local chatRing, crest
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
 local openKey
@@ -127,10 +170,14 @@ local function Safe(f, ...)
 end
 ns.Safe = Safe
 
-local function Tex(parent, layer, c, a)
-    local t = parent:CreateTexture(nil, layer or "BACKGROUND")
+local function Paint(t, c, a)
     t:SetColorTexture(c[1], c[2], c[3], a or 1)
+    if COLSET[c] then painted[#painted + 1] = { t, c, a or 1 } end
     return t
+end
+
+local function Tex(parent, layer, c, a, sub)
+    return Paint(parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub), c, a)
 end
 
 -- Every text of the phone, with its template size, so the font size option
@@ -153,6 +200,7 @@ end
 local function Font(parent, template, c, justify, group)
     local f = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
     if c then f:SetTextColor(c[1], c[2], c[3]) end
+    if c and COLSET[c] then f.col = c end
     f:SetJustifyH(justify or "LEFT")
     f.group = group
     fonts[#fonts + 1] = f
@@ -279,15 +327,33 @@ local function Preview(c, m)
     return s
 end
 
+-- Round icons: a circle mask (MaskTexture). This client refuses SetTexCoord on a
+-- masked texture, so the mask is taken off, the crop set, and the mask put back.
+local function RoundIcon(tex)
+    local p = tex:GetParent()
+    if not (p and p.CreateMaskTexture and tex.AddMaskTexture) then return nil end
+    local ok, m = pcall(p.CreateMaskTexture, p)
+    if not ok or not m then return nil end
+    pcall(m.SetTexture, m, MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetAllPoints(tex)
+    tex.roundMask = m
+    pcall(tex.AddMaskTexture, tex, m)
+    return m
+end
+ns.RoundIcon = RoundIcon
+
 local function SetIcon(tex, c)
+    local m = rawget(tex, "roundMask")
+    if m and tex.RemoveMaskTexture then pcall(tex.RemoveMaskTexture, tex, m) end
     local coords = c.cls and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[c.cls]
     if coords and c.kind == "whisper" then
         tex:SetTexture(CLASS_TEX)
-        tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+        pcall(tex.SetTexCoord, tex, coords[1], coords[2], coords[3], coords[4])
     else
         tex:SetTexture((c.kind == "channel" and ChannelIcon(c.name)) or c.icon or KIND_ICON[c.kind] or KIND_ICON.whisper)
-        tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        pcall(tex.SetTexCoord, tex, 0.08, 0.92, 0.08, 0.92)
     end
+    if m then pcall(tex.AddMaskTexture, tex, m) end
 end
 
 ns.SetIcon = SetIcon
@@ -858,13 +924,24 @@ local function Row(i)
     r.sel = Tex(r, "BACKGROUND", COL.head)
     r.sel:SetAllPoints()
     r.sel:Hide()
+    -- selected chat: a thin bar in the theme's accent at the left edge
+    r.selBar = Tex(r, "ARTWORK", COL.accent)
+    r.selBar:SetWidth(3)
+    r.selBar:SetPoint("TOPLEFT", 0, -6)
+    r.selBar:SetPoint("BOTTOMLEFT", 0, 6)
+    r.selBar:Hide()
     local hl = r:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.05)
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetSize(32, 32)
     r.icon:SetPoint("LEFT", 8, 0)
-    -- no mask: on this client a masked texture refuses SetTexCoord (class / icon crops)
+    RoundIcon(r.icon)
+    -- ring around the round icon (class color for players, the theme's color for the rest)
+    r.ring = Tex(r, "ARTWORK", COL.ring, 0.9, -1)
+    r.ring:SetSize(36, 36)
+    r.ring:SetPoint("CENTER", r.icon, "CENTER")
+    Round(r.ring)
     r.time = Font(r, "GameFontHighlightSmall", COL.sub, "RIGHT")
     r.time:SetPoint("TOPRIGHT", -8, -8)
     r.name = Font(r, "GameFontHighlight", COL.text)
@@ -890,6 +967,7 @@ local function Row(i)
     r.iniBg:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMLEFT")
     r.iniBg:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT")
     r.iniBg:SetHeight(13)
+    if r.icon.roundMask and r.iniBg.AddMaskTexture then pcall(r.iniBg.AddMaskTexture, r.iniBg, r.icon.roundMask) end
     r.iniBg:Hide()
     r.ini = Font(r, "GameFontHighlightSmall", COL.text, "CENTER")
     r.ini:SetPoint("BOTTOM", r.icon, "BOTTOM", 0, 1)
@@ -903,7 +981,7 @@ local function Row(i)
         GameTooltip:Show()
     end)
     r:SetScript("OnLeave", GameTooltip_Hide)
-    local line = Tex(r, "BORDER", COL.sep)
+    local line = Tex(r, "BORDER", COL.sep, 0.6)
     line:SetHeight(1)
     line:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, -6)
     line:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", 0, 0)
@@ -1072,6 +1150,9 @@ RenderList = function()
         r.prev:SetTextColor(pc[1], pc[2], pc[3])
         local n = (c.kind == "archive" and c.unread) or (quiet and 0) or (c.muted and (c.unseen or 0) or (c.unread or 0))
         r.sel:SetShown(openKey == c.key)
+        r.selBar:SetShown(openKey == c.key)
+        local rc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.ring
+        r.ring:SetColorTexture(rc[1], rc[2], rc[3], 0.9)
         if n > 0 then
             r.badge.n:SetText(n > 99 and "99+" or tostring(n))
             local bc = c.muted and COL.sub or COL.accent
@@ -1396,7 +1477,8 @@ local function RenderChat(mode)
         chatTitle:SetText(L.PICK)
         chatTitle:SetTextColor(COL.sub[1], COL.sub[2], COL.sub[3])
         chatSub:SetText("")
-        chatIcon:SetTexture(KIND_ICON.channel)
+        SetIcon(chatIcon, { kind = "channel" })
+        chatRing:SetColorTexture(COL.ring[1], COL.ring[2], COL.ring[3], 0.9)
         return 0
     end
     chatTitle:SetText(Title(c))
@@ -1404,6 +1486,8 @@ local function RenderChat(mode)
     chatTitle:SetTextColor(cc[1], cc[2], cc[3])
     chatSub:SetText(Sub(c))
     SetIcon(chatIcon, c)
+    local rc = (c.kind == "whisper" and ClassColor(c.cls)) or COL.ring
+    chatRing:SetColorTexture(rc[1], rc[2], rc[3], 0.9)
 
     local width = FitWidth(chatScroll, chatContent, Num(phone:GetWidth(), settings.w) - ListW())
     -- long messages use the whole width (8 px margin each side + 8 px padding inside), so edges line up
@@ -1722,6 +1806,27 @@ end
 -- A message of this conversation changed in place (rolls): draw it again if open.
 function ns:RedrawKey(key)
     if view.key == key then view.key = nil end
+end
+
+-- Theme: colors in place, everything painted with them again, crest, redraw.
+function ns:ApplyTheme()
+    local name = ThemeName()
+    UseTheme(name)
+    for _, p in ipairs(painted) do p[1]:SetColorTexture(p[2][1], p[2][2], p[2][3], p[3]) end
+    for _, f in ipairs(fonts) do
+        local c = rawget(f, "col")
+        if c then f:SetTextColor(c[1], c[2], c[3]) end
+    end
+    if crest then
+        if CREST[name] and pcall(crest.SetTexture, crest, CREST[name]) then
+            crest:SetAlpha(0.06)
+            crest:Show()
+        else
+            crest:Hide()
+        end
+    end
+    ns.theme = name
+    if phone then ns:Redraw() end
 end
 
 -- Draw everything again (colors changed).
@@ -2089,6 +2194,10 @@ local function Build()
     chatView = CreateFrame("Frame", nil, phone)
     chatView:SetPoint("TOPLEFT", listView, "TOPRIGHT")
     chatView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
+    -- faction crest, very faint, behind the messages
+    crest = chatView:CreateTexture(nil, "BACKGROUND", nil, 2)
+    crest:SetSize(170, 170)
+    crest:SetPoint("CENTER", chatView, "CENTER", 0, -10)
     local divider = Tex(chatView, "BORDER", COL.sep)
     divider:SetWidth(1)
     divider:SetPoint("TOPLEFT")
@@ -2097,7 +2206,11 @@ local function Build()
     chatIcon = ch:CreateTexture(nil, "ARTWORK")
     chatIcon:SetSize(30, 30)
     chatIcon:SetPoint("LEFT", 10, 0)
-    -- no mask here either (SetTexCoord is used on it)
+    RoundIcon(chatIcon)
+    chatRing = Tex(ch, "ARTWORK", COL.ring, 0.9, -1)
+    chatRing:SetSize(34, 34)
+    chatRing:SetPoint("CENTER", chatIcon, "CENTER")
+    Round(chatRing)
     -- (options and -/+ are in the chats header, always there)
     local copyC = CreateFrame("Button", nil, ch)
     copyC:SetSize(20, 20)
@@ -2341,8 +2454,10 @@ local function OnEvent(self, event, ...)
         settings = Store:Settings()
         ns.settings = settings
         ns:ApplyLocale(settings.locale)
+        UseTheme(ThemeName())
         Build()
         Place()
+        ns:ApplyTheme()
         -- Never assign the StaticPopupDialogs global itself: that taints every read of it
         -- (ESC -> StaticPopup_EscapePressed -> SpellStopCasting blocked). Only add a key.
         if StaticPopupDialogs then StaticPopupDialogs.MILKSHAKSON_PHONE_CLEAR = {
@@ -2376,6 +2491,7 @@ local function OnEvent(self, event, ...)
         UpdateStatus()
         if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(10, UpdateStatus) end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        if (settings.theme or "auto") == "auto" and ns.theme ~= ThemeName() then ns:ApplyTheme() end
         -- my name as the chat writes it (Forever: "First Last"), for my own old messages
         if UnitGUID and GetPlayerInfoByGUID then
             local ok, _, _, _, _, _, name = pcall(GetPlayerInfoByGUID, UnitGUID("player"))
