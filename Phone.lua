@@ -338,6 +338,26 @@ function ns:SyncProfButtons()
     end
 end
 
+-- Level state of a profession: "max" (at the highest rank there is: green),
+-- "train" (rank full, a higher rank can be learned: blue with a +), "low" (under
+-- 40% of the rank: red), nil (normal). Ranks: 75 / 150 / 225 / 300, the next one
+-- needs character level 10 / 20 / 35.
+local PROF_CAP, PROF_LOW = 300, 0.4
+local NEXT_LEVEL = { [75] = 10, [150] = 20, [225] = 35 }
+local PROF_COL = { max = { 0.3, 1, 0.35 }, train = { 0.35, 0.68, 1 }, low = { 1, 0.32, 0.3 } }
+local function ProfState(rank, max)
+    if rank >= max then
+        if max >= PROF_CAP then return "max" end
+        local need = NEXT_LEVEL[max]
+        local lvl = UnitLevel and UnitLevel("player") or 0
+        if need and lvl < need then return "max" end
+        return "train"
+    end
+    if rank < max * PROF_LOW then return "low" end
+    return nil
+end
+ns.ProfState = ProfState
+
 local function ProfItem(i)
     local it = CreateFrame("Frame", nil, profBar)
     it:SetHeight(TOP_H - 8)
@@ -346,7 +366,7 @@ local function ProfItem(i)
     it.icon:SetPoint("LEFT", 0, 0)
     pcall(it.icon.SetTexCoord, it.icon, 0.08, 0.92, 0.08, 0.92)
     it.text = Font(it, "GameFontHighlightSmall", COL.text)
-    it.text:SetPoint("LEFT", it.icon, "RIGHT", 4, 0)
+    it.text:SetPoint("LEFT", it.icon, "RIGHT", 5, 0)
     local b = CreateFrame("Button", "MilkshaksonPhoneProf" .. i, UIParent, "SecureActionButtonTemplate")
     b:SetFrameStrata(phone and phone:GetFrameStrata() or "LOW")
     b:SetFrameLevel((profBar:GetFrameLevel() or 1) + 20)
@@ -358,6 +378,11 @@ local function ProfItem(i)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:SetText(it.name or "")
         GameTooltip:AddLine(it.level or "", 1, 1, 1)
+        local hint = it.state and L["PROF_" .. it.state:upper()]
+        if hint then
+            local c = PROF_COL[it.state]
+            GameTooltip:AddLine(hint, c[1], c[2], c[3], true)
+        end
         if it.spell then GameTooltip:AddLine(L.PROF_CLICK, 0.6, 0.6, 0.6) end
         GameTooltip:Show()
     end)
@@ -373,7 +398,7 @@ function ns:UpdateProfessions()
     local on = not (settings and settings.showProfLevels == false)
     local list = on and ProfList() or {}
     profBar.items = rawget(profBar, "items") or {}
-    local x = 10
+    local x = 12
     for i, p in ipairs(list) do
         local it = profBar.items[i]
         if not it then
@@ -386,18 +411,20 @@ function ns:UpdateProfessions()
         it.spell = ProfSpell(p[1])
         it.icon:SetTexture(p[4])
         it.text:SetText(it.level)
-        -- a maxed skill in the accent color (time to train the next rank)
-        local c = (p[2] >= p[3]) and COL.accent or COL.text
+        -- green = top rank maxed, blue + = maxed, learn the next rank, red = very low
+        it.state = ProfState(p[2], p[3])
+        if it.state == "train" then it.level = it.level .. "+"; it.text:SetText(it.level) end
+        local c = PROF_COL[it.state] or COL.text
         it.text:SetTextColor(c[1], c[2], c[3])
         local w = 20 + math.max(30, tonumber(it.text:GetStringWidth()) or 40)
         it:SetWidth(w)
         it:ClearAllPoints()
         it:SetPoint("LEFT", profBar, "LEFT", x, 0)
-        x = x + w + 12
+        x = x + w + 16
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    ns.profWidth = (#list > 0) and (x - 12 + 10) or 0
+    ns.profWidth = (#list > 0) and (x - 16 + 12) or 0
     ns:SyncProfButtons()
 end
 
@@ -1842,7 +1869,7 @@ end
 local function Pill(i)
     if pills[i] then return pills[i] end
     local b = CreateFrame("Button", nil, listHead)
-    b:SetHeight(MINI_ROW - 4)
+    b:SetHeight(MINI_ROW - 8)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetAllPoints()
     b.text = Font(b, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
@@ -1894,12 +1921,12 @@ local function UpdatePills()
         local c = GameColor(x.ev)
         b.bg:SetColorTexture(c[1], c[2], c[3], 1)
         b.text:SetText(x.label .. "  " .. (x.n > 99 and "99+" or x.n))
-        b:SetWidth(Num(b.text:GetUnboundedStringWidth(), 60) + 16)
+        b:SetWidth(Num(b.text:GetUnboundedStringWidth(), 60) + 20)
         b.key = x.key
         b:ClearAllPoints()
         -- second row, after "Chats (n)", centered on it
-        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0)
-        else b:SetPoint("LEFT", listTitle, "RIGHT", 10, 0) end
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 8, 0)
+        else b:SetPoint("LEFT", listTitle, "RIGHT", 14, 0) end
         b:Show()
         prev = b
     end
@@ -2311,7 +2338,7 @@ local function Build()
     minB:SetPoint("RIGHT", -10, 0)
     -- options: always here (also minimized and with the Combat chat open)
     local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
-    cfgL:SetPoint("RIGHT", minB, "LEFT", -4, 0)
+    cfgL:SetPoint("RIGHT", minB, "LEFT", -8, 0)
     -- drawer: collapse the chats list to its icons / expand it again
     -- second row: drawer arrow + search box
     searchRow = CreateFrame("Frame", nil, phone)
