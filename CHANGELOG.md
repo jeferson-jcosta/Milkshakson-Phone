@@ -1,7 +1,9 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- **Money in the top bar**, before the professions (updates when it changes). Option "Money in the top bar" (on).
+- **What's new** popup: after an update, the release notes of the new version show once (Options > "What's new" shows them again; a checkbox turns it off). MilkshaksonUI v10.
+- **Money in the title bar**, after the clock, with the gold / silver / copper coin icons like the bags (updates when it changes). Option "Money in the title bar" (on).
+- Money in messages shows with the coin icons, like the bags: the game's "3 Silver, 20 Copper" everywhere, and "1g 2s 3c" in addon / system / Auction House lines.
 - Options: changing the language changes the options page right away (it used to need /reload) — MilkshaksonUI v9.
 - Fix: minimized, a click on the "Chats (n)" row did not restore the phone (only the top bar did).
 

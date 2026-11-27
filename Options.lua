@@ -72,6 +72,8 @@ function ns:BuildOptions(db)
     UI:Note(p, L.CFG_DATA_NOTE)
     p.y = p.y - 12
 
+    UI:Buttons(p, { { L.WHATS_NEW, function() if ns.ShowWhatsNew then ns:ShowWhatsNew(true) end end } })
+
     UI:Section(p, L.CFG_LANGUAGE)
     UI:Language(p, ns, db, R)
 

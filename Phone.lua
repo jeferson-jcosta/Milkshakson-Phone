@@ -124,6 +124,7 @@ end
 local SEND_TYPE = { party = "PARTY", raid = "RAID", instance = "INSTANCE_CHAT", guild = "GUILD", officer = "OFFICER", ["local"] = "SAY" }
 
 local phone, clockText, zoneText, banner, grip
+local moneyText
 local listView, listTitle, listScroll, listContent, emptyText, listHead, searchBox
 local chatView, chatTitle, chatSub, chatIcon, chatScroll, chatContent
 local chatRing, crest
@@ -414,61 +415,57 @@ local function ProfItem(i)
     return it
 end
 
--- my money, first item of the top bar (before the professions); option showMoney
-local function MoneyText(c)
-    if GetCoinTextureString then
-        local ok, t = pcall(GetCoinTextureString, c, 12)
-        if ok and t then return t end
-    end
-    return ("%dg %ds %dc"):format(math.floor(c / 10000), math.floor(c / 100) % 100, c % 100)
+-- Money as in the bags: amounts with the gold / silver / copper coin icons
+-- (never "1g 2s 3c"). Silver shows once there is gold, copper always.
+local COIN = {
+    g = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
+    s = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
+    c = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
+}
+local function Coins(c)
+    c = math.floor(math.abs(tonumber(c) or 0) + 0.5)
+    local g, sv, cp = math.floor(c / 10000), math.floor(c / 100) % 100, c % 100
+    local t = {}
+    if g > 0 then t[#t + 1] = (BreakUpLargeNumbers and BreakUpLargeNumbers(g) or g) .. COIN.g end
+    if g > 0 or sv > 0 then t[#t + 1] = sv .. COIN.s end
+    t[#t + 1] = cp .. COIN.c
+    return table.concat(t, " ")
 end
-ns.MoneyText = MoneyText
+ns.Coins, ns.MoneyText = Coins, Coins
 
-local function MoneyItem()
-    local m = rawget(profBar, "money")
-    if m then return m end
-    m = CreateFrame("Frame", nil, profBar)
-    m:SetHeight(TOP_H - 8)
-    m.text = Font(m, "GameFontHighlightSmall", COL.text)
-    m.text:SetPoint("LEFT", 0, 0)
-    m:EnableMouse(true)
-    m:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(MONEY or L.MONEY)
-        GameTooltip:AddLine(self.text:GetText() or "", 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    m:SetScript("OnLeave", GameTooltip_Hide)
-    profBar.money = m
-    return m
-end
-
--- returns the x where the professions start
-function ns:UpdateMoney()
-    if not profBar then return 12 end
-    local m = MoneyItem()
-    local c = GetMoney and GetMoney()
-    if not (settings and settings.showMoney ~= false) or type(c) ~= "number"
-        or (issecretvalue and issecretvalue(c)) then
-        m:Hide()
-        return 12
+-- Money written as words in a message ("3 Silver, 20 Copper", the game's
+-- GOLD_AMOUNT / SILVER_AMOUNT / COPPER_AMOUNT) -> coin icons. Addon / system
+-- lines also turn "1g 2s 3c" into icons.
+local coinPats
+local function CoinPatterns()
+    if coinPats and #coinPats > 0 then return coinPats end
+    coinPats = {}
+    for _, e in ipairs({ { GOLD_AMOUNT, "g" }, { SILVER_AMOUNT, "s" }, { COPPER_AMOUNT, "c" } }) do
+        if type(e[1]) == "string" and e[1]:find("%%d") then
+            local pat = e[1]:gsub("%%%d%$", "%%"):gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%d", "(%%d+)")
+            coinPats[#coinPats + 1] = { pat, e[2] }
+        end
     end
-    m.text:SetText(MoneyText(c))
-    local w = math.max(20, tonumber(m.text:GetStringWidth()) or 60)
-    m:SetWidth(w)
-    m:ClearAllPoints()
-    m:SetPoint("LEFT", profBar, "LEFT", 12, 0)
-    m:Show()
-    return 12 + w + 16
+    return coinPats
 end
+local function CoinIcons(t, letters)
+    if type(t) ~= "string" or t == "" then return t end
+    for _, p in ipairs(CoinPatterns()) do
+        t = t:gsub(p[1], function(n) return n .. COIN[p[2]] end)
+    end
+    if letters then
+        t = t:gsub("(%f[%w]%d+)([gsc])%f[^%w]", function(n, k) return n .. COIN[k] end)
+    end
+    return t
+end
+ns.CoinIcons = CoinIcons
 
 function ns:UpdateProfessions()
     if not profBar then return end
     local on = not (settings and settings.showProfLevels == false)
     local list = on and ProfList() or {}
     profBar.items = rawget(profBar, "items") or {}
-    local start = ns:UpdateMoney()
-    local x = start
+    local x = 12
     for i, p in ipairs(list) do
         local it = profBar.items[i]
         if not it then
@@ -494,7 +491,7 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    ns.profWidth = (x > 12) and (x - 16 + 12) or 0
+    ns.profWidth = (#list > 0) and (x - 16 + 12) or 0
     ns:SyncProfButtons()
 end
 
@@ -528,8 +525,12 @@ end
 local function OneLine(s) return ((s or ""):gsub("[\r\n]+", " ")) end
 
 -- Message text with its tag ([!], [AFK]...).
-local function Body(m)
+local LETTER_KINDS = { addon = true, auction = true, system = true, npc = true, rolls = true, skills = true }
+local function Body(m, kind)
     local s = m.text or ""
+    if not (issecretvalue and issecretvalue(s)) then
+        s = CoinIcons(s, LETTER_KINDS[kind or ""] or m.npc or false)
+    end
     if m.ev == "EMOTE" and m.from then s = m.from .. " " .. s end
     if m.tag == "warning" then s = "|cffff8000" .. L.TAG_WARNING .. "|r " .. s
     elseif m.tag == "afk" then s = L.TAG_AFK .. " " .. s
@@ -572,7 +573,7 @@ end
 
 local function Preview(c, m)
     if m.skill and m.rank then return L.SKILL_UP:format(m.skill, m.rank) end
-    local s = OneLine(Body(m))
+    local s = OneLine(Body(m, c and c.kind))
     if IsMine(m) then return L.YOU .. ": " .. s end
     if IsGroup(c.kind) and m.from and not m.info then return m.from .. ": " .. s end
     return s
@@ -1640,7 +1641,7 @@ local function PlaceMsg(c, m, maxW, group)
     local tc = TypeColor(m, c)
     b.text:ClearAllPoints()
     b.text:SetWidth(maxW)
-    b.text:SetText(Highlight(Body(m), ns.query))
+    b.text:SetText(Highlight(Body(m, openKey and (Store:Get(openKey) or {}).kind), ns.query))
     local tw = math.min(maxW, Num(b.text:GetUnboundedStringWidth(), maxW))
     local w, h
     b:ClearAllPoints()
@@ -2273,6 +2274,13 @@ end
 local function UpdateStatus()
     if not phone then return end
     clockText:SetText(date("%H:%M"))
+    -- my money right after the clock (option showMoney), with the coin icons
+    local c = GetMoney and GetMoney()
+    if settings and settings.showMoney ~= false and type(c) == "number" and not (issecretvalue and issecretvalue(c)) then
+        moneyText:SetText(Coins(c))
+    else
+        moneyText:SetText("")
+    end
     zoneText:SetText((GetMinimapZoneText and GetMinimapZoneText()) or (GetRealZoneText and GetRealZoneText()) or "")
 end
 
@@ -2343,9 +2351,12 @@ local function Build()
     Drag(status)
     clockText = Font(status, "GameFontHighlightSmall", COL.text)
     clockText:SetPoint("LEFT", 10, 0)
+    moneyText = Font(status, "GameFontHighlightSmall", COL.text)
+    moneyText:SetPoint("LEFT", clockText, "RIGHT", 10, 0)
+    ns.moneyText = moneyText
     zoneText = Font(status, "GameFontHighlightSmall", COL.sub, "RIGHT")
     zoneText:SetPoint("RIGHT", -10, 0)
-    zoneText:SetPoint("LEFT", clockText, "RIGHT", 10, 0)
+    zoneText:SetPoint("LEFT", moneyText, "RIGHT", 10, 0)
     zoneText:SetWordWrap(false)
 
     -- Bottom: the bar the game's edit box sits on.
@@ -2831,8 +2842,10 @@ local function OnEvent(self, event, ...)
             for _, p in ipairs(ProfList()) do names[#names + 1] = p[1] end
             Safe(ns.Trainers.Learn, ns.Trainers, names)
         end
-    elseif event == "SKILL_LINES_CHANGED" or event == "PLAYER_MONEY" then
+    elseif event == "SKILL_LINES_CHANGED" then
         ns:UpdateProfessions()
+    elseif event == "PLAYER_MONEY" then
+        UpdateStatus()
     elseif event == "GROUP_JOINED" then
         -- option: a new group starts with an empty group chat
         if settings.resetParty then

@@ -27,3 +27,4 @@ Auction.lua
 Trainers.lua
 Phone.lua
 Options.lua
+Notes.lua
