@@ -54,6 +54,24 @@ local function Short(name)
 end
 R.Short = Short
 
+-- Skill ups: the game's SKILL_RANK_UP text ("Your skill in %s has increased to %d.",
+-- any client language, positional %1$s too) as a Lua pattern.
+function R.PatternFrom(f)
+    if type(f) ~= "string" or f == "" then return false end
+    local p = f:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")      -- escape magic chars (not %)
+    -- %1$s / %2$d and %s / %d -> placeholders first, so "(%d+)" is not replaced again
+    p = p:gsub("%%%d+%%%$s", "\1"):gsub("%%%d+%%%$d", "\2")
+    p = p:gsub("%%s", "\1"):gsub("%%d", "\2")
+    p = p:gsub("\1", "(.+)"):gsub("\2", "(%%d+)")
+    return "^" .. p .. "$"
+end
+local skillPat
+local function SkillPattern()
+    if skillPat == nil then skillPat = R.PatternFrom(SKILL_RANK_UP) end
+    return skillPat
+end
+R.SkillPattern = SkillPattern
+
 local function Class(guid)
     if type(guid) ~= "string" or guid == "" or not GetPlayerInfoByGUID then return nil end
     local ok, _, cls = pcall(GetPlayerInfoByGUID, guid)
@@ -108,6 +126,17 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
         msg.out = Mine(who) or nil
         msg.cls = Class(guid)
         return { key = "c:" .. base:lower(), kind = "channel", name = base, chan = tonumber(chanIndex), msg = msg }
+    end
+
+    -- profession / skill ups: their own conversation (option showSkills)
+    if (t == "SKILL" or t == "SYSTEM") and type(text) == "string" and not (ns.settings and ns.settings.showSkills == false) then
+        local p = SkillPattern()
+        local skill, rank
+        if p then skill, rank = text:match(p) end
+        if skill or t == "SKILL" then
+            msg.info, msg.skill, msg.rank = true, skill, tonumber(rank)
+            return { key = "skills", kind = "skills", msg = msg }
+        end
     end
 
     local kind = KIND[t]

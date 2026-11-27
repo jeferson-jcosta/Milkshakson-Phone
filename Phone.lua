@@ -60,6 +60,7 @@ local KIND_ICON = {
     archive = "Interface\\Icons\\INV_Box_01", back = "Interface\\Icons\\Spell_ChargeNegative",
     npc = "Interface\\Icons\\Ability_Hunter_BeastCall", combat = "Interface\\Icons\\Ability_DualWield",
     rolls = "Interface\\Buttons\\UI-GroupLoot-Dice-Up",
+    skills = "Interface\\Icons\\Trade_Engineering",
 }
 -- Channel icons by name (any client language): business, defense, zone map.
 local CHANNEL_ICON = {
@@ -269,6 +270,7 @@ local function Highlight(s, q)
 end
 
 local function Preview(c, m)
+    if m.skill and m.rank then return L.SKILL_UP:format(m.skill, m.rank) end
     local s = OneLine(Body(m))
     if IsMine(m) then return L.YOU .. ": " .. s end
     if IsGroup(c.kind) and m.from and not m.info then return m.from .. ": " .. s end
@@ -1578,6 +1580,10 @@ function ns:MiniCounts()
         end
     end
     if wn > 0 then out[#out + 1] = { id = "whisper", label = L.WHISPERS, ev = "WHISPER", n = wn, key = wkey } end
+    local sk = convs.skills
+    if sk and not sk.muted and (sk.unread or 0) > 0 then
+        out[#out + 1] = { id = "skills", label = L.K_skills, ev = "SKILL", n = sk.unread, key = "skills" }
+    end
     return out
 end
 
