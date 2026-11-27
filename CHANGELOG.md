@@ -1,6 +1,6 @@
 # Changelog - Milkshakson - Phone
 
-## Unreleased
+## 0.6.0
 - **What's new** popup: after an update, the release notes of the new version show once (Options > "What's new" shows them again; a checkbox turns it off). MilkshaksonUI v10.
 - **Money in the title bar**, after the clock, with the gold / silver / copper coin icons like the bags (updates when it changes). Option "Money in the title bar" (on).
 - Money in messages shows with the coin icons, like the bags: the game's "3 Silver, 20 Copper" everywhere, and "1g 2s 3c" in addon / system / Auction House lines.
