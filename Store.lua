@@ -17,6 +17,7 @@ S.DEFAULTS = {
     showRolls = true,     -- Rolls chat: Need / Greed / Pass per item and the winner
     showSkills = true,    -- Professions chat: skill ups (else they go to System)
     showAuction = true,
+    showMoney = true,     -- top bar: my money, before the professions
     showProfLevels = true, -- top bar: professions with their levels
     theme = "auto",       -- colors: auto (your faction) / alliance / horde / messenger (green)   -- Auction House chat: purchases, sales, expired, outbid (else System)
     archiveDays = 3,

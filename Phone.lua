@@ -414,12 +414,61 @@ local function ProfItem(i)
     return it
 end
 
+-- my money, first item of the top bar (before the professions); option showMoney
+local function MoneyText(c)
+    if GetCoinTextureString then
+        local ok, t = pcall(GetCoinTextureString, c, 12)
+        if ok and t then return t end
+    end
+    return ("%dg %ds %dc"):format(math.floor(c / 10000), math.floor(c / 100) % 100, c % 100)
+end
+ns.MoneyText = MoneyText
+
+local function MoneyItem()
+    local m = rawget(profBar, "money")
+    if m then return m end
+    m = CreateFrame("Frame", nil, profBar)
+    m:SetHeight(TOP_H - 8)
+    m.text = Font(m, "GameFontHighlightSmall", COL.text)
+    m.text:SetPoint("LEFT", 0, 0)
+    m:EnableMouse(true)
+    m:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(MONEY or L.MONEY)
+        GameTooltip:AddLine(self.text:GetText() or "", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    m:SetScript("OnLeave", GameTooltip_Hide)
+    profBar.money = m
+    return m
+end
+
+-- returns the x where the professions start
+function ns:UpdateMoney()
+    if not profBar then return 12 end
+    local m = MoneyItem()
+    local c = GetMoney and GetMoney()
+    if not (settings and settings.showMoney ~= false) or type(c) ~= "number"
+        or (issecretvalue and issecretvalue(c)) then
+        m:Hide()
+        return 12
+    end
+    m.text:SetText(MoneyText(c))
+    local w = math.max(20, tonumber(m.text:GetStringWidth()) or 60)
+    m:SetWidth(w)
+    m:ClearAllPoints()
+    m:SetPoint("LEFT", profBar, "LEFT", 12, 0)
+    m:Show()
+    return 12 + w + 16
+end
+
 function ns:UpdateProfessions()
     if not profBar then return end
     local on = not (settings and settings.showProfLevels == false)
     local list = on and ProfList() or {}
     profBar.items = rawget(profBar, "items") or {}
-    local x = 12
+    local start = ns:UpdateMoney()
+    local x = start
     for i, p in ipairs(list) do
         local it = profBar.items[i]
         if not it then
@@ -445,7 +494,7 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    ns.profWidth = (#list > 0) and (x - 16 + 12) or 0
+    ns.profWidth = (x > 12) and (x - 16 + 12) or 0
     ns:SyncProfButtons()
 end
 
@@ -2739,7 +2788,7 @@ local function OnEvent(self, event, ...)
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
             "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE",
-            "PLAYER_REGEN_DISABLED", "GROUP_JOINED", "SKILL_LINES_CHANGED", "TRAINER_SHOW" }) do
+            "PLAYER_REGEN_DISABLED", "GROUP_JOINED", "SKILL_LINES_CHANGED", "TRAINER_SHOW", "PLAYER_MONEY" }) do
             pcall(self.RegisterEvent, self, e)
         end
         if settings.combatLog then ns.Combat:Start() end
@@ -2782,7 +2831,7 @@ local function OnEvent(self, event, ...)
             for _, p in ipairs(ProfList()) do names[#names + 1] = p[1] end
             Safe(ns.Trainers.Learn, ns.Trainers, names)
         end
-    elseif event == "SKILL_LINES_CHANGED" then
+    elseif event == "SKILL_LINES_CHANGED" or event == "PLAYER_MONEY" then
         ns:UpdateProfessions()
     elseif event == "GROUP_JOINED" then
         -- option: a new group starts with an empty group chat

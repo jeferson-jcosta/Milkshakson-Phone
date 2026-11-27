@@ -44,6 +44,8 @@ function ns:BuildOptions(db)
     UI:Check(p, L.CFG_COMBATLOG, L.CFG_COMBATLOG_TIP, function() return db.combatLog end, function(v) db.combatLog = v; if not v and ns.CloseKind then ns:CloseKind("combat") end; R() end)
     UI:Check(p, L.CFG_ROLLS, L.CFG_ROLLS_TIP, function() return db.showRolls end, function(v) db.showRolls = v; if not v and ns.CloseKind then ns:CloseKind("rolls") end; R() end)
     UI:Check(p, L.CFG_SKILLS, L.CFG_SKILLS_TIP, function() return db.showSkills end, function(v) db.showSkills = v; R() end)
+    UI:Check(p, L.CFG_MONEY, L.CFG_MONEY_TIP, function() return db.showMoney end,
+        function(v) db.showMoney = v; if ns.UpdateProfessions then ns:UpdateProfessions() end end)
     UI:Check(p, L.CFG_PROFLEVELS, L.CFG_PROFLEVELS_TIP, function() return db.showProfLevels end,
         function(v) db.showProfLevels = v; if ns.UpdateProfessions then ns:UpdateProfessions() end end)
     UI:Check(p, L.CFG_AUCTION, L.CFG_AUCTION_TIP, function() return db.showAuction end, function(v) db.showAuction = v; R() end)
