@@ -358,7 +358,11 @@ end
 
 ns.SetIcon = SetIcon
 
-local function Round(tex) if tex.SetMask then pcall(tex.SetMask, tex, MASK) end end
+-- Round solid shapes (ring, badge): the same circle MaskTexture as the icons
+-- (SetMask did nothing on this client: rings and badges stayed square, 2026-11-27).
+local function Round(tex)
+    if not RoundIcon(tex) and tex.SetMask then pcall(tex.SetMask, tex, MASK) end
+end
 
 local function TextButton(parent, label, onClick, tip)
     local b = CreateFrame("Button", nil, parent)
