@@ -11,7 +11,7 @@ local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
 local SEARCH_H = 30 -- row under the top bar: drawer arrow + search box (hidden while minimized)
-local MINI_ROW = 22 -- minimized: a row of professions, then a row of pills, under the title
+local MINI_ROW = 28 -- minimized: second row under the top bar: "Chats (n)" + the unread pills
 local TOP_H = 34  -- top bar: professions (icon + level, click opens it), options, -/+; minimized: title + pills
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
@@ -313,12 +313,9 @@ end
 -- UIParent (a protected child would make the phone itself protected: it hides
 -- and minimizes in combat) and laid over the icons out of combat; a state
 -- driver hides them in combat.
--- Minimized height: status + title bar, + professions row, + pills row (when there are any).
+-- Minimized height: status + top bar (professions + buttons) + the "Chats" / pills row.
 local function MiniH()
-    local h = STATUS_H + TOP_H
-    if (ns.profWidth or 0) > 0 then h = h + MINI_ROW end
-    if (ns.pillCount or 0) > 0 then h = h + MINI_ROW end
-    return h
+    return STATUS_H + TOP_H + MINI_ROW
 end
 ns.MiniH = MiniH
 
@@ -400,9 +397,7 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    local had = (ns.profWidth or 0) > 0
     ns.profWidth = (#list > 0) and (x - 12 + 10) or 0
-    if had ~= (ns.profWidth > 0) and ns.FitMini then ns.FitMini(); if ns.UpdatePills then ns.UpdatePills() end end
     ns:SyncProfButtons()
 end
 
@@ -1864,23 +1859,20 @@ local function Pill(i)
     return b
 end
 
--- Professions: open = in the top bar, before the buttons; minimized = their own
--- row under the title bar (the pills get the row under it): nothing overlaps.
+-- Top bar, open or minimized: professions on the left, the buttons on the right.
+-- Minimized, "Chats (n)" and the unread pills get the row under it. Every row
+-- centers its items vertically.
 function ns:PlaceProfBar(m)
     if not profBar then return end
     if m == nil then m = settings.min and not ns.peek end
+    local cfg = ns.headButtons and ns.headButtons.cfg
     profBar:ClearAllPoints()
-    if m then
-        profBar:SetPoint("TOPLEFT", listHead, "BOTTOMLEFT")
-        profBar:SetPoint("TOPRIGHT", listHead, "BOTTOMRIGHT")
-        profBar:SetHeight(MINI_ROW)
-    else
-        local cfg = ns.headButtons and ns.headButtons.cfg
-        profBar:SetPoint("TOPLEFT", listHead, "TOPLEFT")
-        profBar:SetPoint("BOTTOMLEFT", listHead, "BOTTOMLEFT")
-        if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
-    end
+    profBar:SetPoint("TOPLEFT", listHead, "TOPLEFT")
+    profBar:SetPoint("BOTTOMLEFT", listHead, "BOTTOMLEFT")
+    if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
     profBar:Show()
+    listTitle:ClearAllPoints()
+    listTitle:SetPoint("LEFT", listHead, "BOTTOMLEFT", 12, -math.floor(MINI_ROW / 2))
 end
 
 -- Minimized and not moving: follow the rows (professions, pills) in the height.
@@ -1905,10 +1897,9 @@ local function UpdatePills()
         b:SetWidth(Num(b.text:GetUnboundedStringWidth(), 60) + 16)
         b.key = x.key
         b:ClearAllPoints()
-        -- their own row, under the professions row (or under the title bar)
-        local under = ((ns.profWidth or 0) > 0) and MINI_ROW or 0
+        -- second row, after "Chats (n)", centered on it
         if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0)
-        else b:SetPoint("TOPLEFT", listHead, "BOTTOMLEFT", 10, -under - 2) end
+        else b:SetPoint("LEFT", listTitle, "RIGHT", 10, 0) end
         b:Show()
         prev = b
     end
@@ -2315,7 +2306,7 @@ local function Build()
     lhLine:SetPoint("BOTTOMRIGHT")
     listHead = lh
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
-    listTitle:SetPoint("LEFT", 12, 0)
+    listTitle:SetPoint("LEFT", lh, "BOTTOMLEFT", 12, -math.floor(MINI_ROW / 2))
     local minB = MinButton(lh)
     minB:SetPoint("RIGHT", -10, 0)
     -- options: always here (also minimized and with the Combat chat open)
