@@ -390,11 +390,7 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    local w = (#list > 0) and (x - 12 + 10) or 0
-    if w ~= ns.profWidth then
-        ns.profWidth = w
-        if settings and settings.min and not ns.peek then profBar:SetWidth(w) end
-    end
+    ns.profWidth = (#list > 0) and (x - 12 + 10) or 0
     ns:SyncProfButtons()
 end
 
@@ -1747,20 +1743,7 @@ function ns:Layout()
     local function Panes(m)
         listView:ClearAllPoints()
         listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H - (m and 0 or SEARCH_H))
-        if profBar then
-            -- open: from the left edge; minimized: right-aligned before the buttons (after the pills)
-            local cfg = ns.headButtons and ns.headButtons.cfg
-            profBar:ClearAllPoints()
-            profBar:SetPoint("TOP", listHead, "TOP")
-            profBar:SetPoint("BOTTOM", listHead, "BOTTOM")
-            if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
-            if m then
-                profBar:SetWidth(ns.profWidth or 0)
-            else
-                profBar:SetPoint("LEFT", listHead, "LEFT")
-            end
-            profBar:Show()
-        end
+        ns:PlaceProfBar(m)
         if searchRow then searchRow:SetShown(not m) end
         if m then
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
@@ -1869,6 +1852,26 @@ local function Pill(i)
     return b
 end
 
+-- Professions in the top bar: open = from the left edge; minimized = after the
+-- title and the pills (never under them), up to the buttons, cut when no room.
+local lastPill
+function ns:PlaceProfBar(m)
+    if not profBar then return end
+    if m == nil then m = settings.min and not ns.peek end
+    local cfg = ns.headButtons and ns.headButtons.cfg
+    profBar:ClearAllPoints()
+    profBar:SetPoint("TOP", listHead, "TOP")
+    profBar:SetPoint("BOTTOM", listHead, "BOTTOM")
+    if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
+    if m then
+        if lastPill then profBar:SetPoint("LEFT", lastPill, "RIGHT", 0, 0)
+        else profBar:SetPoint("LEFT", listTitle, "RIGHT", 2, 0) end
+    else
+        profBar:SetPoint("LEFT", listHead, "LEFT")
+    end
+    profBar:Show()
+end
+
 local function UpdatePills()
     local list = (settings.min and not ns.peek) and ns:MiniCounts() or {}
     local prev
@@ -1885,6 +1888,10 @@ local function UpdatePills()
         prev = b
     end
     for i = #list + 1, #pills do pills[i]:Hide() end
+    if prev ~= lastPill then
+        lastPill = prev
+        if settings.min and not ns.peek then ns:PlaceProfBar(true) end
+    end
     return #list
 end
 ns.UpdatePills = UpdatePills
