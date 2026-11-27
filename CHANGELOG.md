@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Drawer initials: joined words count as words ("LocalDefense" -> LD, not LO; "LookingForGroup" -> LF).
 - **Professions** chat: every skill up ("Tailoring rose to 45") gets its own conversation with a badge and preview, and a pill while the phone is minimized (they used to go to the quiet System chat). Option "Professions chat (skill ups)" (on); any client language.
 - New layout: one **top bar** across the whole phone (drawer arrow over the icons column, search, options, -/+); the open chat's header (icon, name, copy) sits inside the chat pane, under it. The minimized phone is a bit lower (34 px bar).
 - Chats have a thin **scroll bar** on the right (drag the thumb or click the track; dragging to the top loads older messages, like the wheel). Hidden when everything fits.

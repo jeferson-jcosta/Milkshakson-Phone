@@ -832,10 +832,12 @@ end
 
 -- Two letters for a chat in the collapsed list: first letters of the first two
 -- words ("Trade - City" -> TC), or the first two of a single word ("Guild" -> Gu).
+-- Joined words count as words: "LocalDefense" -> LD, "LookingForGroup" -> LF.
 local function FirstChar(w) return w:match("^[%z\1-\127\194-\244][\128-\191]*") or "" end
 local function Initials(c)
     local t = tostring(Title(c) or "")
     t = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("^%s*%d+%.%s*", "")
+    t = t:gsub("(%l)(%u)", "%1 %2")
     local words = {}
     for w in t:gmatch("[^%s%-%._/:,()%[%]]+") do words[#words + 1] = w end
     if #words == 0 then return "?" end
