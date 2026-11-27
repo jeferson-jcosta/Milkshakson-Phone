@@ -128,6 +128,7 @@ local chatRing, crest
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
 local openKey
+local profText
 
 local function Num(v, d) return type(v) == "number" and v or d end
 
@@ -247,7 +248,7 @@ ns.Title = Title
 
 local function IsGroup(kind) return kind ~= "whisper" and kind ~= "bn" end
 
--- Professions with their level, for the Professions chat header:
+-- Professions with their level, in the top bar (user: in the visible header):
 -- "Cooking 25/150 - Tailoring 100/225". Modern API (GetProfessions) first,
 -- else the skills list (classic API: profession and secondary skill headers).
 local function Professions()
@@ -280,12 +281,12 @@ local function Professions()
 end
 ns.Professions = Professions
 
+function ns:UpdateProfessions()
+    if profText then profText:SetText(Professions()) end
+end
+
 local function Sub(c)
     local s
-    if c.kind == "skills" then
-        local p = Professions()
-        if p ~= "" then return p end
-    end
     if c.kind == "whisper" then s = L.SUB_WHISPER
     elseif c.kind == "bn" then s = L.SUB_BN
     elseif c.kind == "channel" then s = c.chan and L.SUB_CHANNEL:format(c.chan) or L.SUB_GROUP
@@ -1645,6 +1646,7 @@ function ns:Layout()
         local col = settings.listCollapsed and not m
         listTitle:SetShown(m and true or false)
         if searchBox then searchBox:SetShown(not m) end
+        if profText then profText:SetShown(not m) end
         local hb = ns.headButtons
         if hb then
             hb.drawer:SetShown(not m)
@@ -2222,6 +2224,12 @@ local function Build()
     clear:SetScript("OnClick", function() sb:SetText(""); sb:ClearFocus() end)
     searchBox = sb
     ns.searchBox = sb
+    -- professions and their levels, between the search box and the buttons
+    profText = Font(lh, "GameFontHighlightSmall", COL.sub, "RIGHT")
+    profText:SetPoint("LEFT", sb, "RIGHT", 10, 0)
+    profText:SetPoint("RIGHT", cfgL, "LEFT", -8, 0)
+    profText:SetWordWrap(false)
+    ns.profText = profText
 
     listScroll, listContent = Scroller(listView)
     listScroll:SetPoint("TOPLEFT", listView, "TOPLEFT", 0, -2)
@@ -2532,6 +2540,7 @@ local function OnEvent(self, event, ...)
         UpdateStatus()
         if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(10, UpdateStatus) end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        ns:UpdateProfessions()
         if (settings.theme or "auto") == "auto" and ns.theme ~= ThemeName() then ns:ApplyTheme() end
         -- my name as the chat writes it (Forever: "First Last"), for my own old messages
         if UnitGUID and GetPlayerInfoByGUID then
@@ -2553,7 +2562,7 @@ local function OnEvent(self, event, ...)
             ns:AutoJoin()
         end
     elseif event == "SKILL_LINES_CHANGED" then
-        if openKey == "skills" then ns:Refresh() end
+        ns:UpdateProfessions()
     elseif event == "GROUP_JOINED" then
         -- option: a new group starts with an empty group chat
         if settings.resetParty then
