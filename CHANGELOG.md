@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
-## Unreleased
+## 0.6.1
+- **About** button in Options: what the addon does and its commands, in your language (same text as the GitHub and CurseForge pages). MilkshaksonUI v11.
 - Public `MilkshaksonPhone_LootMessage(addon, text)`: other addons (Milkshakson-Ninjas: good loot, roll helper) add lines to the Loot rolls chat.
 
 ## 0.6.0

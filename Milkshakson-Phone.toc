@@ -4,7 +4,7 @@
 ## Notes: Your chat as a phone messenger: one conversation per player, group and channel, with bubbles, unread counts and history.
 ## Notes-ptBR: Seu chat como um mensageiro de celular: uma conversa por jogador, grupo e canal, com balões, mensagens não lidas e histórico.
 ## Author: JJC
-## Version: 0.6.0
+## Version: 0.6.1
 ## IconTexture: Interface\Icons\INV_Letter_15
 ## SavedVariables: MilkshaksonPhoneDB
 ## SavedVariablesPerCharacter: MilkshaksonPhoneCharDB
@@ -27,4 +27,5 @@ Auction.lua
 Trainers.lua
 Phone.lua
 Options.lua
+About.lua
 Notes.lua

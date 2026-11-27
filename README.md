@@ -1,42 +1,63 @@
 # Milkshakson - Phone
 
-Your chat as a **phone messenger**. Instead of one stream mixing whispers, guild, party, trade and loot, every player, group and channel gets its **own conversation**:
+**Your chat as a phone messenger for WoW: Forever** — one conversation per player, group, guild and channel, in bubbles, with unread counts, professions and your gold always in view.
 
-- **Always in General, Trade and LocalDefense**: joins them by itself on login, /reload and zone change (option).
-- **Two panes**: chats on the left, the open chat on the right.
-- **Always on top**: party / raid and guild while you are in one, then the channels you are in (General, Trade, LocalDefense, LFG...).
-- **Chats list**: one line per conversation with the last message, the time and an unread badge. Newest first; pin the ones you care about to the top.
-- **Conversation**: bubbles (yours on the right, theirs on the left), sender name in group chats (class color), time on each message, day separators (Today, Yesterday, date). Item / quest links stay clickable.
-- **Replaces the game's chat** (on by default): the game's chat windows are hidden and the typing box sits on the phone. Open a conversation and press Enter, or click the bottom bar: you type straight to that player / group / channel. Slash commands work as usual.
-- **Combat**: the game's combat log inside the phone.
-- **Loot rolls**: one message per item rolled on — who chose Need / Greed / Disenchant / Pass, the rolls and who won.
-- **System & NPCs** in one quiet chat at the end of the list (no badge, no last message; option to monitor it). Each can be switched off.
-- **Search**: find chats and messages (name or text), matches highlighted.
-- **Colors**: text colored by chat type (guild green, party blue...), using the game's chat colors.
-- **Players**: right-click a message for whisper, invite to group / guild, add friend, /who, copy name, ignore (and the game's own menu). Click a name to talk to them privately.
-- Public channels (Trade, General...) start **muted** (grey count instead of a green badge). Right-click a chat: pin, mute, clear, delete.
-- History per character, kept between sessions.
+![WoW: Forever](https://img.shields.io/badge/WoW-Forever%201.60.1-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Languages](https://img.shields.io/badge/lang-English%20%7C%20Portugu%C3%AAs-green)
 
-Light on performance: redraws are grouped, new messages only add their bubble, 50 messages at a time (scroll up for more), nothing drawn while minimized.
+## Chats
+- **Two panes:** your chats on the left, the open chat on the right; a drawer folds the list into round icons.
+- **Bubbles** with class-colored names, time and day separators; links stay clickable; search and copy.
+- Party / raid and guild on top, then **General, Trade, LocalDefense** (joined by itself, never in combat).
+- **Replaces the game's chat** (option): Enter types to the open chat.
 
-Only the game API is used; no other addon needed.
+## Special chats
+- **Loot rolls** (who chose Need / Greed / Pass and who won), **Professions** (skill ups), **Auction House** (sold, won, outbid), **Combat** and a quiet **System** chat.
 
-**The game hides chat messages from addons in some situations** (combat / encounters on this client). When that happens the phone shows a warning and the game's own chat comes back until it ends, so no message is lost.
+## Always in view
+- **Your gold** in the title bar with the coin icons, like the bags.
+- **Professions** with their level and colors (maxed, learn the next rank, too low) and the trainers you visited; click opens the profession.
+- Unread pills when minimized, pin, mute, archive; **Alliance / Horde** themes; **What's new** after each update.
 
 ## Commands
-
 | Command | |
 | --- | --- |
-| `/ph` (also `/mph`, `/phone`, `/mphone`) | Minimize / restore |
-| `/ph chat on` / `off` | Replace the game's chat, or keep it and use the phone as an extra window |
-| `/ph config` | Options |
-| `/ph test` / `/ph test fake` | A real whisper to yourself / a pretend one (only on the phone), to try it |
-| `/ph status` | Chats, messages, unread |
-| `/ph probe` | Checks the chat API this game client has |
-| `/ph reset` | Reset position and size |
-| `/ph clear` | Delete all chats of this character (asks first) |
-| `/ph lang <code\|auto>` | Language |
+| `/ph` (`/mph`, `/phone`) | minimize / restore |
+| `/ph config` | options |
+| `/ph chat on|off` | replace the game's chat |
+| `/ph help` | all commands |
 
-## License
+Every command is also a button in the addon's window or options page (Options > AddOns > Milkshakson).
 
-MIT
+## Optional integrations
+None needed. Everything works with the game alone.
+
+## Install
+CurseForge app, or download the zip from [Releases](../../releases) and extract it into `World of Warcraft\_forever_\Interface\AddOns`.
+
+---
+
+## Português (Brasil)
+
+**Seu chat como um mensageiro de celular no WoW: Forever** — uma conversa por jogador, grupo, guilda e canal, em balões, com não lidas, profissões e seu ouro sempre à vista.
+
+### Conversas
+- **Duas colunas:** conversas à esquerda, a conversa aberta à direita; uma gaveta recolhe a lista em ícones redondos.
+- **Balões** com nomes na cor da classe, hora e separadores de dia; links clicáveis; busca e copiar.
+- Grupo / raide e guilda no topo, depois **Geral, Comércio, DefesaLocal** (entra sozinho, nunca em combate).
+- **Substitui o chat do jogo** (opção): Enter escreve na conversa aberta.
+
+### Conversas especiais
+- **Rolagens de loot** (quem deu Need / Greed / Passar e quem ganhou), **Profissões** (skill subindo), **Casa de Leilões** (vendido, ganho, superado), **Combate** e um chat de **Sistema** quieto.
+
+### Sempre à vista
+- **Seu ouro** na barra de título com os ícones de moedas, como na bolsa.
+- **Profissões** com nível e cores (no máximo, aprender o próximo nível, muito baixo) e os treinadores visitados; clique abre a profissão.
+- Contadores de não lidas minimizado, fixar, silenciar, arquivar; temas **Aliança / Horda**; **Novidades** a cada atualização.
+
+**Comandos:** `/ph` (`/mph`, `/phone`) minimizar / restaurar · `/ph config` opções · `/ph chat on|off` substituir o chat do jogo · `/ph help` todos os comandos
+
+---
+
+**More Milkshakson addons for WoW: Forever / Mais addons Milkshakson:** Ready Quests, Run Away Little Girl, Ninjas, Rivals, Trader.
+
+MIT License · by JJC

@@ -4,6 +4,13 @@
 local ADDON, ns = ...
 
 ns.NOTES = {
+    { v = "0.6.1",
+      en = {
+        "**Loot chat for your addons:** Milkshakson-Ninjas now posts your good loot (BoE, upgrades, rarity) in the Loot rolls chat.",
+      },
+      pt = {
+        "**Chat de loot para seus addons:** o Milkshakson-Ninjas agora posta seu loot bom (BoE, upgrade, raridade) no chat de Loot.",
+      } },
     { v = "0.6.0",
       en = {
         "**Money in the title bar**, after the clock, with the coin icons like the bags.",
@@ -40,6 +47,13 @@ function ns:ShowWhatsNew(force)
     if not (UI and UI.WhatsNew) then return end
     UI:WhatsNew({ title = "Phone", version = Version(), notes = ns.NOTES,
         db = MilkshaksonPhoneDB, lang = ns.localeCode, force = force })
+end
+
+-- Options > About: the addon's description (About.lua, same text as the README / CurseForge page)
+function ns:ShowAbout()
+    local UI = MilkshaksonUI
+    if not (UI and UI.About and ns.ABOUT) then return end
+    UI:About({ title = "Phone", version = Version(), about = ns.ABOUT, lang = ns.localeCode })
 end
 
 local f = CreateFrame("Frame")
