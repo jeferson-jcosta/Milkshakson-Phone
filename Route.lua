@@ -128,6 +128,13 @@ function R:Classify(event, text, sender, _, chanName, _, _, _, chanIndex, chanBa
         return { key = "c:" .. base:lower(), kind = "channel", name = base, chan = tonumber(chanIndex), msg = msg }
     end
 
+    -- Auction House messages (won, sold, expired, outbid...): their own conversation (option showAuction)
+    if t == "SYSTEM" and ns.Auction and ns.Auction:Matches(text) then
+        if ns.Auction.Dup(text) then return nil end   -- already shown from the AH event
+        msg.info = true
+        return { key = "auction", kind = "auction", msg = msg }
+    end
+
     -- profession / skill ups: their own conversation (option showSkills)
     if (t == "SKILL" or t == "SYSTEM") and type(text) == "string" and not (ns.settings and ns.settings.showSkills == false) then
         local p = SkillPattern()

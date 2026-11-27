@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- **Auction House chat** (option, on): your AH purchases, sales, auctions created / expired / cancelled and outbids in their own conversation, with a badge and a pill while minimized. From the AH events (the game prints them without a chat event, so they were lost while the phone replaced the chat) and the AH system messages (same text twice = once). Other addons can add lines: `MilkshaksonPhone_AuctionMessage(text)` (Milkshakson-Trader sends its purchases and sales with prices).
 - Drawer initials: joined words count as words ("LocalDefense" -> LD, not LO; "LookingForGroup" -> LF).
 - **Professions** chat: every skill up ("Tailoring rose to 45") gets its own conversation with a badge and preview, and a pill while the phone is minimized (they used to go to the quiet System chat). Option "Professions chat (skill ups)" (on); any client language.
 - New layout: one **top bar** across the whole phone (drawer arrow over the icons column, search, options, -/+); the open chat's header (icon, name, copy) sits inside the chat pane, under it. The minimized phone is a bit lower (34 px bar).

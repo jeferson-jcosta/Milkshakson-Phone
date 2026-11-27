@@ -61,6 +61,7 @@ local KIND_ICON = {
     npc = "Interface\\Icons\\Ability_Hunter_BeastCall", combat = "Interface\\Icons\\Ability_DualWield",
     rolls = "Interface\\Buttons\\UI-GroupLoot-Dice-Up",
     skills = "Interface\\Icons\\Trade_Engineering",
+    auction = "Interface\\Icons\\INV_Misc_Coin_02",
 }
 -- Channel icons by name (any client language): business, defense, zone map.
 local CHANNEL_ICON = {
@@ -203,7 +204,8 @@ local function Sub(c)
     if c.kind == "whisper" then s = L.SUB_WHISPER
     elseif c.kind == "bn" then s = L.SUB_BN
     elseif c.kind == "channel" then s = c.chan and L.SUB_CHANNEL:format(c.chan) or L.SUB_GROUP
-    elseif c.kind == "system" or c.kind == "npc" or c.kind == "addon" or c.kind == "rolls" then s = L.SUB_READONLY
+    elseif c.kind == "system" or c.kind == "npc" or c.kind == "addon" or c.kind == "rolls"
+        or c.kind == "auction" or c.kind == "skills" then s = L.SUB_READONLY
     else s = L.SUB_GROUP end
     if c.muted then s = s .. "  -  " .. L.MUTED end
     return s
@@ -1586,6 +1588,10 @@ function ns:MiniCounts()
     if sk and not sk.muted and (sk.unread or 0) > 0 then
         out[#out + 1] = { id = "skills", label = L.K_skills, ev = "SKILL", n = sk.unread, key = "skills" }
     end
+    local ah = convs.auction
+    if ah and not ah.muted and (ah.unread or 0) > 0 then
+        out[#out + 1] = { id = "auction", label = L.K_auction, ev = "SYSTEM", n = ah.unread, key = "auction" }
+    end
     return out
 end
 
@@ -2359,6 +2365,7 @@ local function OnEvent(self, event, ...)
         end
         if settings.combatLog then ns.Combat:Start() end
         if ns.Rolls then ns.Rolls:Start() end
+        if ns.Auction then ns.Auction:Start() end
         ns:BuildOptions(settings)
         if settings.replaceChat or settings.shown ~= false then phone:Show() else phone:Hide() end
         local first = settings.lastOpen or "guild"

@@ -23,5 +23,6 @@ Store.lua
 Route.lua
 Combat.lua
 Rolls.lua
+Auction.lua
 Phone.lua
 Options.lua
