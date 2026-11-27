@@ -2,7 +2,7 @@
 
 ## Unreleased
 - Round profession icons with a thin ring, like the chats list.
-- Profession level colors: **green** = maxed at the top rank (300, or the next rank needs a higher character level), **blue with a +** ("75/75+") = rank full, learn the next rank at a trainer, **red** = very low (under 40% of the rank). The tooltip says which.
+- Profession level colors, against the real cap of 300: **green** = 300/300, **red** = still low (under 120), **blue with a +** ("200/225+") = the next rank can be learned now at a trainer (skill within 25 of the rank's top and character level 10 / 20 / 35). The tooltip says which.
 - More room between the top bar items, the pills and the buttons; the options button is a gear (like the other Milkshakson windows) instead of "...", centered with the -/+ button; the pills are centered in their row.
 - **Professions in the top bar** (minimized too: top bar = professions + buttons, the row under it = "Chats (n)" + the unread pills, items centered in each row): each profession's icon with its level ("155/225"; name on hover; a maxed skill in the accent color), updated when a skill goes up; **click opens the profession** (its own spell, Mining opens Smelting; gathering skills without a window do nothing; not in combat). Option "Professions in the top bar" (on).
 - The drawer arrow and the search box moved to their own row under the top bar.

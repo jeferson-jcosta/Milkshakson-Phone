@@ -338,22 +338,23 @@ function ns:SyncProfButtons()
     end
 end
 
--- Level state of a profession: "max" (at the highest rank there is: green),
--- "train" (rank full, a higher rank can be learned: blue with a +), "low" (under
--- 40% of the rank: red), nil (normal). Ranks: 75 / 150 / 225 / 300, the next one
--- needs character level 10 / 20 / 35.
+-- Level state of a profession, against the real cap (300 on Forever; ranks
+-- Apprentice 75 / Journeyman 150 / Expert 225 / Artisan 300):
+--   "max"   = 300/300 (green)
+--   "low"   = under 40% of 300 (red), whatever the rank
+--   "train" = the next rank can be learned now (blue, "200/225+"): skill within
+--             25 of the rank's top and character level 10 / 20 / 35
+--   nil     = normal
 local PROF_CAP, PROF_LOW = 300, 0.4
 local NEXT_LEVEL = { [75] = 10, [150] = 20, [225] = 35 }
 local PROF_COL = { max = { 0.3, 1, 0.35 }, train = { 0.35, 0.68, 1 }, low = { 1, 0.32, 0.3 } }
 local function ProfState(rank, max)
-    if rank >= max then
-        if max >= PROF_CAP then return "max" end
-        local need = NEXT_LEVEL[max]
-        local lvl = UnitLevel and UnitLevel("player") or 0
-        if need and lvl < need then return "max" end
-        return "train"
-    end
-    if rank < max * PROF_LOW then return "low" end
+    local cap = math.max(PROF_CAP, max)
+    if rank >= cap then return "max" end
+    if rank < cap * PROF_LOW then return "low" end
+    local need = NEXT_LEVEL[max]
+    local lvl = UnitLevel and UnitLevel("player") or 0
+    if need and rank >= max - 25 and lvl >= need then return "train" end
     return nil
 end
 ns.ProfState = ProfState
