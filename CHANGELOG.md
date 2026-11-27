@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- The top bar (right of the search box) shows your professions with their levels ("Tailoring 100/225  -  Cooking 25/150"), updated when a skill goes up. Option "Profession levels in the top bar" (on).
+- **Professions row** under the top bar: each profession's icon with its level ("155/225"; the name on hover; a maxed skill in the accent color), updated when a skill goes up. Option "Profession levels" (on).
 
 ## 0.4.0
 - **Alliance / Horde theme** (Options > Theme: My faction (default), Alliance, Horde, Messenger (the old green)): Alliance = dark navy with gold, your messages in blue; Horde = dark red with amber, your messages in red; the faction crest very faint behind the messages. Switches live.

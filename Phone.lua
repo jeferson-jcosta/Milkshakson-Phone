@@ -10,6 +10,7 @@ local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
+local PROF_H = 22 -- professions row under the top bar (icon + level per profession)
 local TOP_H = 34  -- top bar over both panes: drawer, search, options, -/+ (all that shows when minimized)
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
@@ -128,7 +129,7 @@ local chatRing, crest
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
 local openKey
-local profText
+local profBar
 
 local function Num(v, d) return type(v) == "number" and v or d end
 
@@ -248,18 +249,25 @@ ns.Title = Title
 
 local function IsGroup(kind) return kind ~= "whisper" and kind ~= "bn" end
 
--- Professions with their level, in the top bar (user: in the visible header):
--- "Cooking 25/150 - Tailoring 100/225". Modern API (GetProfessions) first,
--- else the skills list (classic API: profession and secondary skill headers).
-local function Professions()
+-- Professions with their level, in their own row under the top bar (icon +
+-- "155/225" each; name on hover). Modern API (GetProfessions) first, else the
+-- skills list (classic API: profession and secondary skill headers).
+local function SpellIcon(name)
+    local ok, t
+    if C_Spell and C_Spell.GetSpellTexture then ok, t = pcall(C_Spell.GetSpellTexture, name) end
+    if not (ok and t) and GetSpellTexture then ok, t = pcall(GetSpellTexture, name) end
+    return ok and t or nil
+end
+
+local function ProfList()
     local out = {}
     if GetProfessions and GetProfessionInfo then
         local list = { GetProfessions() }
         for i = 1, 6 do
             local idx = list[i]
             if idx then
-                local ok, name, _, rank, max = pcall(GetProfessionInfo, idx)
-                if ok and name and rank and max and max > 0 then out[#out + 1] = { name, rank, max } end
+                local ok, name, icon, rank, max = pcall(GetProfessionInfo, idx)
+                if ok and name and rank and max and max > 0 then out[#out + 1] = { name, rank, max, icon } end
             end
         end
     end
@@ -275,16 +283,66 @@ local function Professions()
             end
         end
     end
+    for _, p in ipairs(out) do p[4] = p[4] or SpellIcon(p[1]) or 134400 end
+    return out
+end
+ns.ProfList = ProfList
+
+local function Professions()
+    local out = ProfList()
     local parts = {}
     for _, p in ipairs(out) do parts[#parts + 1] = ("%s %d/%d"):format(p[1], p[2], p[3]) end
     return table.concat(parts, "  -  ")
 end
 ns.Professions = Professions
 
+local profShown = false
+local function ProfH() return profShown and PROF_H or 0 end
+
 function ns:UpdateProfessions()
-    if not profText then return end
+    if not profBar then return end
     local on = not (settings and settings.showProfLevels == false)
-    profText:SetText(on and Professions() or "")
+    local list = on and ProfList() or {}
+    profBar.items = rawget(profBar, "items") or {}
+    local x = 10
+    for i, p in ipairs(list) do
+        local it = profBar.items[i]
+        if not it then
+            it = CreateFrame("Frame", nil, profBar)
+            it:SetHeight(PROF_H)
+            it:EnableMouse(true)
+            it.icon = it:CreateTexture(nil, "ARTWORK")
+            it.icon:SetSize(16, 16)
+            it.icon:SetPoint("LEFT", 0, 0)
+            pcall(it.icon.SetTexCoord, it.icon, 0.08, 0.92, 0.08, 0.92)
+            it.text = Font(it, "GameFontHighlightSmall", COL.text)
+            it.text:SetPoint("LEFT", it.icon, "RIGHT", 4, 0)
+            it:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+                GameTooltip:SetText(self.name or "")
+                GameTooltip:AddLine(self.level or "", 1, 1, 1)
+                GameTooltip:Show()
+            end)
+            it:SetScript("OnLeave", GameTooltip_Hide)
+            profBar.items[i] = it
+        end
+        it.name, it.level = p[1], ("%d/%d"):format(p[2], p[3])
+        it.icon:SetTexture(p[4])
+        it.text:SetText(it.level)
+        -- a maxed skill in the accent color (time to train the next rank)
+        local c = (p[2] >= p[3]) and COL.accent or COL.text
+        it.text:SetTextColor(c[1], c[2], c[3])
+        local w = 20 + math.max(30, tonumber(it.text:GetStringWidth()) or 40)
+        it:SetWidth(w)
+        it:ClearAllPoints()
+        it:SetPoint("LEFT", profBar, "LEFT", x, 0)
+        x = x + w + 14
+        it:Show()
+    end
+    for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
+    local was = profShown
+    profShown = #list > 0
+    if was ~= profShown then ns:Layout() end
 end
 
 local function Sub(c)
@@ -1635,7 +1693,8 @@ function ns:Layout()
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
-        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H)
+        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H - (m and 0 or ProfH()))
+        if profBar then profBar:SetShown(not m and profShown) end
         if m then
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
         else
@@ -1648,7 +1707,6 @@ function ns:Layout()
         local col = settings.listCollapsed and not m
         listTitle:SetShown(m and true or false)
         if searchBox then searchBox:SetShown(not m) end
-        if profText then profText:SetShown(not m) end
         local hb = ns.headButtons
         if hb then
             hb.drawer:SetShown(not m)
@@ -2226,12 +2284,18 @@ local function Build()
     clear:SetScript("OnClick", function() sb:SetText(""); sb:ClearFocus() end)
     searchBox = sb
     ns.searchBox = sb
-    -- professions and their levels, between the search box and the buttons
-    profText = Font(lh, "GameFontHighlightSmall", COL.sub, "RIGHT")
-    profText:SetPoint("LEFT", sb, "RIGHT", 10, 0)
-    profText:SetPoint("RIGHT", cfgL, "LEFT", -8, 0)
-    profText:SetWordWrap(false)
-    ns.profText = profText
+    -- professions and their levels: their own row under the top bar
+    profBar = CreateFrame("Frame", nil, phone)
+    profBar:SetPoint("TOPLEFT", lh, "BOTTOMLEFT")
+    profBar:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT")
+    profBar:SetHeight(PROF_H)
+    Tex(profBar, "BACKGROUND", COL.status):SetAllPoints()
+    local pbLine = Tex(profBar, "BORDER", COL.sep)
+    pbLine:SetHeight(1)
+    pbLine:SetPoint("BOTTOMLEFT")
+    pbLine:SetPoint("BOTTOMRIGHT")
+    profBar:Hide()
+    ns.profBar = profBar
 
     listScroll, listContent = Scroller(listView)
     listScroll:SetPoint("TOPLEFT", listView, "TOPLEFT", 0, -2)
