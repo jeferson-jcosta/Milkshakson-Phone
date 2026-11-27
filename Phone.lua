@@ -361,12 +361,18 @@ ns.ProfState = ProfState
 local function ProfItem(i)
     local it = CreateFrame("Frame", nil, profBar)
     it:SetHeight(TOP_H - 8)
+    -- round icon with a thin ring, like the chats list (crop first, then the mask)
+    it.ring = Tex(it, "ARTWORK", COL.ring, 0.9, -1)
+    it.ring:SetSize(22, 22)
+    it.ring:SetPoint("LEFT", 0, 0)
+    ns.Round(it.ring)
     it.icon = it:CreateTexture(nil, "ARTWORK")
-    it.icon:SetSize(18, 18)
-    it.icon:SetPoint("LEFT", 0, 0)
+    it.icon:SetSize(20, 20)
+    it.icon:SetPoint("CENTER", it.ring, "CENTER")
     pcall(it.icon.SetTexCoord, it.icon, 0.08, 0.92, 0.08, 0.92)
+    ns.RoundIcon(it.icon)
     it.text = Font(it, "GameFontHighlightSmall", COL.text)
-    it.text:SetPoint("LEFT", it.icon, "RIGHT", 5, 0)
+    it.text:SetPoint("LEFT", it.ring, "RIGHT", 5, 0)
     local b = CreateFrame("Button", "MilkshaksonPhoneProf" .. i, UIParent, "SecureActionButtonTemplate")
     b:SetFrameStrata(phone and phone:GetFrameStrata() or "LOW")
     b:SetFrameLevel((profBar:GetFrameLevel() or 1) + 20)
@@ -416,7 +422,7 @@ function ns:UpdateProfessions()
         if it.state == "train" then it.level = it.level .. "+"; it.text:SetText(it.level) end
         local c = PROF_COL[it.state] or COL.text
         it.text:SetTextColor(c[1], c[2], c[3])
-        local w = 20 + math.max(30, tonumber(it.text:GetStringWidth()) or 40)
+        local w = 27 + math.max(30, tonumber(it.text:GetStringWidth()) or 40)
         it:SetWidth(w)
         it:ClearAllPoints()
         it:SetPoint("LEFT", profBar, "LEFT", x, 0)
@@ -544,6 +550,7 @@ ns.SetIcon = SetIcon
 local function Round(tex)
     if not RoundIcon(tex) and tex.SetMask then pcall(tex.SetMask, tex, MASK) end
 end
+ns.Round = Round
 
 -- Collapse / expand button (the game's -/+ buttons, as in ReadyQuests).
 local minButtons = {}
