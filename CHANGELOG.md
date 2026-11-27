@@ -1,5 +1,8 @@
 # Changelog - Milkshakson - Phone
 
+## Unreleased
+- Public `MilkshaksonPhone_LootMessage(addon, text)`: other addons (Milkshakson-Ninjas: good loot, roll helper) add lines to the Loot rolls chat.
+
 ## 0.6.0
 - **What's new** popup: after an update, the release notes of the new version show once (Options > "What's new" shows them again; a checkbox turns it off). MilkshaksonUI v10.
 - **Money in the title bar**, after the clock, with the gold / silver / copper coin icons like the bags (updates when it changes). Option "Money in the title bar" (on).

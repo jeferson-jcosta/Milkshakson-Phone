@@ -289,3 +289,15 @@ function R:Start()
         if not ok then geterrorhandler()(err) end
     end)
 end
+
+-- Public: other addons (Milkshakson-Ninjas: good loot received, roll helper)
+-- add a line to the Loot rolls chat; false when that chat is off (caller
+-- falls back to its own output).  MilkshaksonPhone_LootMessage("Ninjas", "text")
+function MilkshaksonPhone_LootMessage(addon, text)
+    local s = ns.settings
+    if not (s and s.showRolls) or type(text) ~= "string" then return false end
+    local m = { t = time(), text = (addon and ("|cff33ff99" .. addon .. ":|r ") or "") .. text, info = true, ev = "LOOT" }
+    ns.Store:Ensure(KEY, "rolls")
+    ns.Store:Add({ key = KEY, kind = "rolls", msg = m }, ns.IsOpen and ns:IsOpen(KEY))
+    return true
+end
