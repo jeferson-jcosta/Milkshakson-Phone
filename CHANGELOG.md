@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- Options: changing the language changes the options page right away (it used to need /reload) — MilkshaksonUI v9.
 - Fix: minimized, a click on the "Chats (n)" row did not restore the phone (only the top bar did).
 
 ## 0.5.0
