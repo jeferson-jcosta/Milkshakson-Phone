@@ -247,8 +247,45 @@ ns.Title = Title
 
 local function IsGroup(kind) return kind ~= "whisper" and kind ~= "bn" end
 
+-- Professions with their level, for the Professions chat header:
+-- "Cooking 25/150 - Tailoring 100/225". Modern API (GetProfessions) first,
+-- else the skills list (classic API: profession and secondary skill headers).
+local function Professions()
+    local out = {}
+    if GetProfessions and GetProfessionInfo then
+        local list = { GetProfessions() }
+        for i = 1, 6 do
+            local idx = list[i]
+            if idx then
+                local ok, name, _, rank, max = pcall(GetProfessionInfo, idx)
+                if ok and name and rank and max and max > 0 then out[#out + 1] = { name, rank, max } end
+            end
+        end
+    end
+    if #out == 0 and GetNumSkillLines and GetSkillLineInfo then
+        local want = { [TRADE_SKILLS or "Professions"] = true, [SECONDARY_SKILLS or "Secondary Skills"] = true }
+        local inside = false
+        for i = 1, GetNumSkillLines() or 0 do
+            local name, header, _, rank, _, _, max = GetSkillLineInfo(i)
+            if header then
+                inside = want[name] or false
+            elseif inside and name and rank and max and max > 0 then
+                out[#out + 1] = { name, rank, max }
+            end
+        end
+    end
+    local parts = {}
+    for _, p in ipairs(out) do parts[#parts + 1] = ("%s %d/%d"):format(p[1], p[2], p[3]) end
+    return table.concat(parts, "  -  ")
+end
+ns.Professions = Professions
+
 local function Sub(c)
     local s
+    if c.kind == "skills" then
+        local p = Professions()
+        if p ~= "" then return p end
+    end
     if c.kind == "whisper" then s = L.SUB_WHISPER
     elseif c.kind == "bn" then s = L.SUB_BN
     elseif c.kind == "channel" then s = c.chan and L.SUB_CHANNEL:format(c.chan) or L.SUB_GROUP
@@ -2479,7 +2516,7 @@ local function OnEvent(self, event, ...)
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
             "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE",
-            "PLAYER_REGEN_DISABLED", "GROUP_JOINED" }) do
+            "PLAYER_REGEN_DISABLED", "GROUP_JOINED", "SKILL_LINES_CHANGED" }) do
             pcall(self.RegisterEvent, self, e)
         end
         if settings.combatLog then ns.Combat:Start() end
@@ -2515,6 +2552,8 @@ local function OnEvent(self, event, ...)
         else
             ns:AutoJoin()
         end
+    elseif event == "SKILL_LINES_CHANGED" then
+        if openKey == "skills" then ns:Refresh() end
     elseif event == "GROUP_JOINED" then
         -- option: a new group starts with an empty group chat
         if settings.resetParty then
