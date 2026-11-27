@@ -390,6 +390,20 @@ local function ProfItem(i)
             local c = PROF_COL[it.state]
             GameTooltip:AddLine(hint, c[1], c[2], c[3], true)
         end
+        -- trainers visited for it: where, and the ranks they teach
+        if ns.Trainers then
+            local lines = ns.Trainers:Lines(it.name, 3)
+            if #lines > 0 then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(L.PROF_TRAINERS, 1, 0.82, 0)
+                for _, l in ipairs(lines) do
+                    GameTooltip:AddLine(l[1], 1, 1, 1, true)
+                    if l[2] then GameTooltip:AddLine("   " .. L.PROF_TEACHES:format(l[2]), 0.6, 0.6, 0.6, true) end
+                end
+            elseif it.state == "train" then
+                GameTooltip:AddLine(L.PROF_NO_TRAINER, 0.7, 0.7, 0.7, true)
+            end
+        end
         if it.spell then GameTooltip:AddLine(L.PROF_CLICK, 0.6, 0.6, 0.6) end
         GameTooltip:Show()
     end)
@@ -2714,7 +2728,7 @@ local function OnEvent(self, event, ...)
         for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "ZONE_CHANGED_NEW_AREA",
             "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ENCOUNTER_END",
             "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "GROUP_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE",
-            "PLAYER_REGEN_DISABLED", "GROUP_JOINED", "SKILL_LINES_CHANGED" }) do
+            "PLAYER_REGEN_DISABLED", "GROUP_JOINED", "SKILL_LINES_CHANGED", "TRAINER_SHOW" }) do
             pcall(self.RegisterEvent, self, e)
         end
         if settings.combatLog then ns.Combat:Start() end
@@ -2750,6 +2764,12 @@ local function OnEvent(self, event, ...)
             C_Timer.After(4, function() ns:AutoJoin(); Later() end)
         else
             ns:AutoJoin()
+        end
+    elseif event == "TRAINER_SHOW" then
+        if ns.Trainers then
+            local names = {}
+            for _, p in ipairs(ProfList()) do names[#names + 1] = p[1] end
+            Safe(ns.Trainers.Learn, ns.Trainers, names)
         end
     elseif event == "SKILL_LINES_CHANGED" then
         ns:UpdateProfessions()

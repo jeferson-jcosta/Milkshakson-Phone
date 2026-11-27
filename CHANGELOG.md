@@ -1,6 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
+- **Trainers**: every profession trainer you open is remembered (name, zone, subzone, coordinates and the ranks it teaches, account-wide per faction); a profession's tooltip in the top bar lists them (the ones in your zone first). The game has no list of trainers, so it only knows the ones you visited; with none yet, the "learn the next rank" tooltip says so.
 - Round profession icons with a thin ring, like the chats list.
 - Profession level colors, against the real cap of 300: **green** = 300/300, **red** = still low (under 120), **blue with a +** ("200/225+") = the next rank can be learned now at a trainer (skill within 25 of the rank's top and character level 10 / 20 / 35). The tooltip says which.
 - More room between the top bar items, the pills and the buttons; the options button is a gear (like the other Milkshakson windows) instead of "...", centered with the -/+ button; the pills are centered in their row.

@@ -24,5 +24,6 @@ Route.lua
 Combat.lua
 Rolls.lua
 Auction.lua
+Trainers.lua
 Phone.lua
 Options.lua
