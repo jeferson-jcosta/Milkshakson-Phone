@@ -11,6 +11,7 @@ local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
 local SEARCH_H = 30 -- row under the top bar: drawer arrow + search box (hidden while minimized)
+local MINI_ROW = 22 -- minimized: a row of professions, then a row of pills, under the title
 local TOP_H = 34  -- top bar: professions (icon + level, click opens it), options, -/+; minimized: title + pills
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
@@ -312,6 +313,15 @@ end
 -- UIParent (a protected child would make the phone itself protected: it hides
 -- and minimizes in combat) and laid over the icons out of combat; a state
 -- driver hides them in combat.
+-- Minimized height: status + title bar, + professions row, + pills row (when there are any).
+local function MiniH()
+    local h = STATUS_H + TOP_H
+    if (ns.profWidth or 0) > 0 then h = h + MINI_ROW end
+    if (ns.pillCount or 0) > 0 then h = h + MINI_ROW end
+    return h
+end
+ns.MiniH = MiniH
+
 local profPending = false
 function ns:SyncProfButtons()
     if not profBar then return end
@@ -390,7 +400,9 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
+    local had = (ns.profWidth or 0) > 0
     ns.profWidth = (#list > 0) and (x - 12 + 10) or 0
+    if had ~= (ns.profWidth > 0) and ns.FitMini then ns.FitMini(); if ns.UpdatePills then ns.UpdatePills() end end
     ns:SyncProfButtons()
 end
 
@@ -1770,7 +1782,7 @@ function ns:Layout()
     end
     if min then
         -- minimizing: the content fades out while the height goes down, then it is hidden
-        ns:AnimateHeight(STATUS_H + TOP_H, "out", function() Panes(true) end)
+        ns:AnimateHeight(MiniH(), "out", function() Panes(true) end)
     else
         Panes(false)
         ns:AnimateHeight(settings.h, "in")
@@ -1835,7 +1847,7 @@ end
 local function Pill(i)
     if pills[i] then return pills[i] end
     local b = CreateFrame("Button", nil, listHead)
-    b:SetHeight(22)
+    b:SetHeight(MINI_ROW - 4)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetAllPoints()
     b.text = Font(b, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
@@ -1852,25 +1864,35 @@ local function Pill(i)
     return b
 end
 
--- Professions in the top bar: open = from the left edge; minimized = after the
--- title and the pills (never under them), up to the buttons, cut when no room.
-local lastPill
+-- Professions: open = in the top bar, before the buttons; minimized = their own
+-- row under the title bar (the pills get the row under it): nothing overlaps.
 function ns:PlaceProfBar(m)
     if not profBar then return end
     if m == nil then m = settings.min and not ns.peek end
-    local cfg = ns.headButtons and ns.headButtons.cfg
     profBar:ClearAllPoints()
-    profBar:SetPoint("TOP", listHead, "TOP")
-    profBar:SetPoint("BOTTOM", listHead, "BOTTOM")
-    if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
     if m then
-        if lastPill then profBar:SetPoint("LEFT", lastPill, "RIGHT", 0, 0)
-        else profBar:SetPoint("LEFT", listTitle, "RIGHT", 2, 0) end
+        profBar:SetPoint("TOPLEFT", listHead, "BOTTOMLEFT")
+        profBar:SetPoint("TOPRIGHT", listHead, "BOTTOMRIGHT")
+        profBar:SetHeight(MINI_ROW)
     else
-        profBar:SetPoint("LEFT", listHead, "LEFT")
+        local cfg = ns.headButtons and ns.headButtons.cfg
+        profBar:SetPoint("TOPLEFT", listHead, "TOPLEFT")
+        profBar:SetPoint("BOTTOMLEFT", listHead, "BOTTOMLEFT")
+        if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
     end
     profBar:Show()
 end
+
+-- Minimized and not moving: follow the rows (professions, pills) in the height.
+local function FitMini()
+    if not (phone and settings.min and not ns.peek) then return end
+    if anim and anim:IsShown() then
+        if anim.to ~= MiniH() then anim.to = MiniH() end
+        return
+    end
+    phone:SetHeight(MiniH())
+end
+ns.FitMini = FitMini
 
 local function UpdatePills()
     local list = (settings.min and not ns.peek) and ns:MiniCounts() or {}
@@ -1883,14 +1905,17 @@ local function UpdatePills()
         b:SetWidth(Num(b.text:GetUnboundedStringWidth(), 60) + 16)
         b.key = x.key
         b:ClearAllPoints()
-        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("LEFT", listTitle, "RIGHT", 12, 0) end
+        -- their own row, under the professions row (or under the title bar)
+        local under = ((ns.profWidth or 0) > 0) and MINI_ROW or 0
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0)
+        else b:SetPoint("TOPLEFT", listHead, "BOTTOMLEFT", 10, -under - 2) end
         b:Show()
         prev = b
     end
     for i = #list + 1, #pills do pills[i]:Hide() end
-    if prev ~= lastPill then
-        lastPill = prev
-        if settings.min and not ns.peek then ns:PlaceProfBar(true) end
+    if ns.pillCount ~= #list then
+        ns.pillCount = #list
+        FitMini()
     end
     return #list
 end
@@ -2196,7 +2221,7 @@ local function Place()
     else
         phone:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 32, 96)
     end
-    phone:SetSize(settings.w, settings.min and (STATUS_H + TOP_H) or settings.h)
+    phone:SetSize(settings.w, settings.min and MiniH() or settings.h)
 end
 ns.Place = Place
 
