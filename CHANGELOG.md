@@ -1,7 +1,7 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- **Professions in the top bar**: each profession's icon with its level ("155/225"; name on hover; a maxed skill in the accent color), updated when a skill goes up; **click opens the profession** (its own spell, Mining opens Smelting; gathering skills without a window do nothing; not in combat). Option "Professions in the top bar" (on).
+- **Professions in the top bar** (also while minimized, right before the buttons): each profession's icon with its level ("155/225"; name on hover; a maxed skill in the accent color), updated when a skill goes up; **click opens the profession** (its own spell, Mining opens Smelting; gathering skills without a window do nothing; not in combat). Option "Professions in the top bar" (on).
 - The drawer arrow and the search box moved to their own row under the top bar.
 
 ## 0.4.0

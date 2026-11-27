@@ -390,6 +390,11 @@ function ns:UpdateProfessions()
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
+    local w = (#list > 0) and (x - 12 + 10) or 0
+    if w ~= ns.profWidth then
+        ns.profWidth = w
+        if settings and settings.min and not ns.peek then profBar:SetWidth(w) end
+    end
     ns:SyncProfButtons()
 end
 
@@ -1742,7 +1747,20 @@ function ns:Layout()
     local function Panes(m)
         listView:ClearAllPoints()
         listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H - (m and 0 or SEARCH_H))
-        if profBar then profBar:SetShown(not m) end
+        if profBar then
+            -- open: from the left edge; minimized: right-aligned before the buttons (after the pills)
+            local cfg = ns.headButtons and ns.headButtons.cfg
+            profBar:ClearAllPoints()
+            profBar:SetPoint("TOP", listHead, "TOP")
+            profBar:SetPoint("BOTTOM", listHead, "BOTTOM")
+            if cfg then profBar:SetPoint("RIGHT", cfg, "LEFT", -6, 0) end
+            if m then
+                profBar:SetWidth(ns.profWidth or 0)
+            else
+                profBar:SetPoint("LEFT", listHead, "LEFT")
+            end
+            profBar:Show()
+        end
         if searchRow then searchRow:SetShown(not m) end
         if m then
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
@@ -2349,6 +2367,7 @@ local function Build()
     profBar:SetPoint("TOPLEFT", lh, "TOPLEFT")
     profBar:SetPoint("BOTTOMLEFT", lh, "BOTTOMLEFT")
     profBar:SetPoint("RIGHT", cfgL, "LEFT", -6, 0)
+    ns.profWidth = 0
     if profBar.SetClipsChildren then profBar:SetClipsChildren(true) end
     profBar:SetScript("OnShow", function() ns:SyncProfButtons() end)
     profBar:SetScript("OnHide", function() ns:SyncProfButtons() end)
