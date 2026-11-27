@@ -1790,6 +1790,7 @@ function ns:Layout()
         -- top bar: "Chats" + pills when minimized; drawer arrow + search when open
         local col = settings.listCollapsed and not m
         listTitle:SetShown(m and true or false)
+        if ns.miniRow then ns.miniRow:SetShown(m and true or false) end
         if searchBox then searchBox:SetShown(not m) end
         local hb = ns.headButtons
         if hb then
@@ -2317,12 +2318,13 @@ local function Build()
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
     -- Top bar over both panes (the chat's own header is inside its pane).
     -- Minimized: a click on "Chats" restores the phone.
-    local lh = Header(phone, function()
+    local function Restore()
         if settings.min then
             ns.peek = false
             ns:Minimize(false)
         end
-    end)
+    end
+    local lh = Header(phone, Restore)
     lh:ClearAllPoints()
     lh:SetPoint("TOPLEFT", status, "BOTTOMLEFT")
     lh:SetPoint("TOPRIGHT", status, "BOTTOMRIGHT")
@@ -2332,6 +2334,15 @@ local function Build()
     lhLine:SetPoint("BOTTOMLEFT")
     lhLine:SetPoint("BOTTOMRIGHT")
     listHead = lh
+    -- minimized: the row under the top bar ("Chats (n)" + pills) restores on click, like the bar
+    local miniRow = CreateFrame("Frame", nil, phone)
+    miniRow:SetPoint("TOPLEFT", lh, "BOTTOMLEFT")
+    miniRow:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT")
+    miniRow:SetHeight(MINI_ROW)
+    miniRow:SetFrameLevel(lh:GetFrameLevel())
+    Drag(miniRow, Restore)
+    miniRow:Hide()
+    ns.miniRow = miniRow
     listTitle = Font(lh, "GameFontNormalLarge", COL.text)
     listTitle:SetPoint("LEFT", lh, "BOTTOMLEFT", 12, -math.floor(MINI_ROW / 2))
     local minB = MinButton(lh)

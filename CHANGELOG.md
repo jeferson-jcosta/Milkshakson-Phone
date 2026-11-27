@@ -1,5 +1,8 @@
 # Changelog - Milkshakson - Phone
 
+## Unreleased
+- Fix: minimized, a click on the "Chats (n)" row did not restore the phone (only the top bar did).
+
 ## 0.5.0
 - **Trainers**: every profession trainer you open is remembered (name, zone, subzone, coordinates and the ranks it teaches, account-wide per faction); a profession's tooltip in the top bar lists them (the ones in your zone first). The game has no list of trainers, so it only knows the ones you visited; with none yet, the "learn the next rank" tooltip says so.
 - Round profession icons with a thin ring, like the chats list.
