@@ -11,7 +11,7 @@ local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
 local SEARCH_H = 30 -- row under the top bar: drawer arrow + search box (hidden while minimized)
-local MINI_ROW = 28 -- minimized: second row under the top bar: "Chats (n)" + the unread pills
+local MINI_ROW = 30 -- minimized: second row under the top bar: "Chats (n)" + the unread pills
 local TOP_H = 34  -- top bar: professions (icon + level, click opens it), options, -/+; minimized: title + pills
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
@@ -543,28 +543,6 @@ ns.SetIcon = SetIcon
 -- (SetMask did nothing on this client: rings and badges stayed square, 2026-11-27).
 local function Round(tex)
     if not RoundIcon(tex) and tex.SetMask then pcall(tex.SetMask, tex, MASK) end
-end
-
-local function TextButton(parent, label, onClick, tip)
-    local b = CreateFrame("Button", nil, parent)
-    b:SetSize(26, 26)
-    local fs = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    fs:SetPoint("CENTER")
-    fs:SetText(label)
-    b.fs = fs
-    local hl = b:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.08)
-    b:SetScript("OnClick", onClick)
-    if tip then
-        b:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:SetText(tip)
-            GameTooltip:Show()
-        end)
-        b:SetScript("OnLeave", GameTooltip_Hide)
-    end
-    return b
 end
 
 -- Collapse / expand button (the game's -/+ buttons, as in ReadyQuests).
@@ -1869,7 +1847,7 @@ end
 local function Pill(i)
     if pills[i] then return pills[i] end
     local b = CreateFrame("Button", nil, listHead)
-    b:SetHeight(MINI_ROW - 8)
+    b:SetHeight(MINI_ROW - 12)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetAllPoints()
     b.text = Font(b, "GameFontHighlightSmall", { 0.05, 0.08, 0.1 }, "CENTER")
@@ -2337,7 +2315,18 @@ local function Build()
     local minB = MinButton(lh)
     minB:SetPoint("RIGHT", -10, 0)
     -- options: always here (also minimized and with the Combat chat open)
-    local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
+    -- options: the gear, as in every Milkshakson window
+    local cfgL = CreateFrame("Button", nil, lh)
+    cfgL:SetSize(18, 18)
+    cfgL:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+    cfgL:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    cfgL:SetScript("OnClick", function() ns:OpenOptions() end)
+    cfgL:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.TIP_OPTIONS)
+        GameTooltip:Show()
+    end)
+    cfgL:SetScript("OnLeave", GameTooltip_Hide)
     cfgL:SetPoint("RIGHT", minB, "LEFT", -8, 0)
     -- drawer: collapse the chats list to its icons / expand it again
     -- second row: drawer arrow + search box
