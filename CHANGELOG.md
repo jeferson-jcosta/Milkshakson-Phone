@@ -1,7 +1,8 @@
 # Changelog - Milkshakson - Phone
 
 ## Unreleased
-- **Professions row** under the top bar: each profession's icon with its level ("155/225"; the name on hover; a maxed skill in the accent color), updated when a skill goes up. Option "Profession levels" (on).
+- **Professions in the top bar**: each profession's icon with its level ("155/225"; name on hover; a maxed skill in the accent color), updated when a skill goes up; **click opens the profession** (its own spell, Mining opens Smelting; gathering skills without a window do nothing; not in combat). Option "Professions in the top bar" (on).
+- The drawer arrow and the search box moved to their own row under the top bar.
 
 ## 0.4.0
 - **Alliance / Horde theme** (Options > Theme: My faction (default), Alliance, Horde, Messenger (the old green)): Alliance = dark navy with gold, your messages in blue; Horde = dark red with amber, your messages in red; the faction crest very faint behind the messages. Switches live.

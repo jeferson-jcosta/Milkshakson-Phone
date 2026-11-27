@@ -10,8 +10,8 @@ local MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local STATUS_H, HEAD_H, INPUT_H, ROW_H, LIST_W = 18, 42, 30, 46, 200
 local COLL_W = 64 -- chats list collapsed (drawer): icons only
-local PROF_H = 22 -- professions row under the top bar (icon + level per profession)
-local TOP_H = 34  -- top bar over both panes: drawer, search, options, -/+ (all that shows when minimized)
+local SEARCH_H = 30 -- row under the top bar: drawer arrow + search box (hidden while minimized)
+local TOP_H = 34  -- top bar: professions (icon + level, click opens it), options, -/+; minimized: title + pills
 local PAGE = 50 -- messages drawn at first; more when scrolling to the top
 
 -- Dark messenger palette.
@@ -129,7 +129,7 @@ local chatRing, crest
 local inputBar, inputText
 local rows, bubbles, seps = {}, {}, {}
 local openKey
-local profBar
+local profBar, searchRow
 
 local function Num(v, d) return type(v) == "number" and v or d end
 
@@ -296,8 +296,70 @@ local function Professions()
 end
 ns.Professions = Professions
 
-local profShown = false
-local function ProfH() return profShown and PROF_H or 0 end
+-- What a click on a profession casts: its own spell opens its window (Mining's
+-- window is Smelting). Gathering skills with no window (Herbalism, Skinning) do nothing.
+local SMELTING = 2656
+local function ProfSpell(name)
+    local mining = (C_Spell and C_Spell.GetSpellInfo) and select(2, pcall(C_Spell.GetSpellInfo, 2575))
+    if type(mining) == "table" and mining.name == name then
+        local sm = select(2, pcall(C_Spell.GetSpellInfo, SMELTING))
+        if type(sm) == "table" and sm.name then return sm.name end
+    end
+    return name
+end
+
+-- Clicks go to secure buttons (casting a spell is protected), parented to
+-- UIParent (a protected child would make the phone itself protected: it hides
+-- and minimizes in combat) and laid over the icons out of combat; a state
+-- driver hides them in combat.
+local profPending = false
+function ns:SyncProfButtons()
+    if not profBar then return end
+    if InCombatLockdown and InCombatLockdown() then profPending = true; return end
+    profPending = false
+    local items = rawget(profBar, "items") or {}
+    for _, it in ipairs(items) do
+        local b = rawget(it, "click")
+        if b then
+            local show = it:IsShown() and profBar:IsVisible() and it.spell ~= nil
+            b:ClearAllPoints()
+            b:SetAllPoints(it)
+            b:SetAttribute("type", "spell")
+            b:SetAttribute("spell", it.spell)
+            b:SetShown(show and true or false)
+        end
+    end
+end
+
+local function ProfItem(i)
+    local it = CreateFrame("Frame", nil, profBar)
+    it:SetHeight(TOP_H - 8)
+    it.icon = it:CreateTexture(nil, "ARTWORK")
+    it.icon:SetSize(18, 18)
+    it.icon:SetPoint("LEFT", 0, 0)
+    pcall(it.icon.SetTexCoord, it.icon, 0.08, 0.92, 0.08, 0.92)
+    it.text = Font(it, "GameFontHighlightSmall", COL.text)
+    it.text:SetPoint("LEFT", it.icon, "RIGHT", 4, 0)
+    local b = CreateFrame("Button", "MilkshaksonPhoneProf" .. i, UIParent, "SecureActionButtonTemplate")
+    b:SetFrameStrata(phone and phone:GetFrameStrata() or "LOW")
+    b:SetFrameLevel((profBar:GetFrameLevel() or 1) + 20)
+    b:RegisterForClicks("AnyUp", "AnyDown")
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.08)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(it.name or "")
+        GameTooltip:AddLine(it.level or "", 1, 1, 1)
+        if it.spell then GameTooltip:AddLine(L.PROF_CLICK, 0.6, 0.6, 0.6) end
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    b:Hide()
+    if RegisterStateDriver then pcall(RegisterStateDriver, b, "visibility", "[combat] hide; show") end
+    it.click = b
+    return it
+end
 
 function ns:UpdateProfessions()
     if not profBar then return end
@@ -308,25 +370,13 @@ function ns:UpdateProfessions()
     for i, p in ipairs(list) do
         local it = profBar.items[i]
         if not it then
-            it = CreateFrame("Frame", nil, profBar)
-            it:SetHeight(PROF_H)
-            it:EnableMouse(true)
-            it.icon = it:CreateTexture(nil, "ARTWORK")
-            it.icon:SetSize(16, 16)
-            it.icon:SetPoint("LEFT", 0, 0)
-            pcall(it.icon.SetTexCoord, it.icon, 0.08, 0.92, 0.08, 0.92)
-            it.text = Font(it, "GameFontHighlightSmall", COL.text)
-            it.text:SetPoint("LEFT", it.icon, "RIGHT", 4, 0)
-            it:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-                GameTooltip:SetText(self.name or "")
-                GameTooltip:AddLine(self.level or "", 1, 1, 1)
-                GameTooltip:Show()
-            end)
-            it:SetScript("OnLeave", GameTooltip_Hide)
+            -- new secure buttons only out of combat
+            if InCombatLockdown and InCombatLockdown() then profPending = true; break end
+            it = ProfItem(i)
             profBar.items[i] = it
         end
         it.name, it.level = p[1], ("%d/%d"):format(p[2], p[3])
+        it.spell = ProfSpell(p[1])
         it.icon:SetTexture(p[4])
         it.text:SetText(it.level)
         -- a maxed skill in the accent color (time to train the next rank)
@@ -336,13 +386,11 @@ function ns:UpdateProfessions()
         it:SetWidth(w)
         it:ClearAllPoints()
         it:SetPoint("LEFT", profBar, "LEFT", x, 0)
-        x = x + w + 14
+        x = x + w + 12
         it:Show()
     end
     for i = #list + 1, #profBar.items do profBar.items[i]:Hide() end
-    local was = profShown
-    profShown = #list > 0
-    if was ~= profShown then ns:Layout() end
+    ns:SyncProfButtons()
 end
 
 local function Sub(c)
@@ -1693,8 +1741,9 @@ function ns:Layout()
     -- Two panes, like a desktop messenger: chats on the left, the open chat on the right.
     local function Panes(m)
         listView:ClearAllPoints()
-        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H - (m and 0 or ProfH()))
-        if profBar then profBar:SetShown(not m and profShown) end
+        listView:SetPoint("TOPLEFT", phone, "TOPLEFT", 0, -STATUS_H - TOP_H - (m and 0 or SEARCH_H))
+        if profBar then profBar:SetShown(not m) end
+        if searchRow then searchRow:SetShown(not m) end
         if m then
             listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT")
         else
@@ -2196,7 +2245,7 @@ local function Build()
     -- List
     listView = CreateFrame("Frame", nil, phone)
     if listView.SetClipsChildren then listView:SetClipsChildren(true) end -- rows stay inside while the drawer slides
-    listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT", 0, -TOP_H)
+    listView:SetPoint("TOPLEFT", status, "BOTTOMLEFT", 0, -TOP_H - SEARCH_H)
     listView:SetPoint("BOTTOMRIGHT", phone, "BOTTOMRIGHT", 0, INPUT_H + 10)
     -- Top bar over both panes (the chat's own header is inside its pane).
     -- Minimized: a click on "Chats" restores the phone.
@@ -2223,7 +2272,18 @@ local function Build()
     local cfgL = TextButton(lh, "...", function() ns:OpenOptions() end, L.TIP_OPTIONS)
     cfgL:SetPoint("RIGHT", minB, "LEFT", -4, 0)
     -- drawer: collapse the chats list to its icons / expand it again
-    local drawer = CreateFrame("Button", nil, lh)
+    -- second row: drawer arrow + search box
+    searchRow = CreateFrame("Frame", nil, phone)
+    searchRow:SetPoint("TOPLEFT", lh, "BOTTOMLEFT")
+    searchRow:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT")
+    searchRow:SetHeight(SEARCH_H)
+    Tex(searchRow, "BACKGROUND", COL.head):SetAllPoints()
+    local srLine = Tex(searchRow, "BORDER", COL.sep)
+    srLine:SetHeight(1)
+    srLine:SetPoint("BOTTOMLEFT")
+    srLine:SetPoint("BOTTOMRIGHT")
+    Drag(searchRow)
+    local drawer = CreateFrame("Button", nil, searchRow)
     drawer:SetSize(20, 26)
     drawer.icon = drawer:CreateTexture(nil, "ARTWORK")
     drawer.icon:SetSize(14, 14)
@@ -2242,10 +2302,10 @@ local function Build()
         self.icon:SetVertexColor(COL.sub[1], COL.sub[2], COL.sub[3])
         GameTooltip_Hide()
     end)
-    drawer:SetPoint("LEFT", lh, "LEFT", math.floor((COLL_W - 20) / 2), 0)  -- over the icons column
+    drawer:SetPoint("LEFT", searchRow, "LEFT", math.floor((COLL_W - 20) / 2), 0)  -- over the icons column
     ns.headButtons = { min = minB, cfg = cfgL, drawer = drawer }
     -- search box, in the header (where "Chats" is while minimized)
-    local sb = CreateFrame("EditBox", nil, lh)
+    local sb = CreateFrame("EditBox", nil, searchRow)
     sb:SetHeight(22)
     sb:SetPoint("LEFT", drawer, "RIGHT", 10, 0)
     sb:SetWidth(LIST_W)
@@ -2284,18 +2344,16 @@ local function Build()
     clear:SetScript("OnClick", function() sb:SetText(""); sb:ClearFocus() end)
     searchBox = sb
     ns.searchBox = sb
-    -- professions and their levels: their own row under the top bar
-    profBar = CreateFrame("Frame", nil, phone)
-    profBar:SetPoint("TOPLEFT", lh, "BOTTOMLEFT")
-    profBar:SetPoint("TOPRIGHT", lh, "BOTTOMRIGHT")
-    profBar:SetHeight(PROF_H)
-    Tex(profBar, "BACKGROUND", COL.status):SetAllPoints()
-    local pbLine = Tex(profBar, "BORDER", COL.sep)
-    pbLine:SetHeight(1)
-    pbLine:SetPoint("BOTTOMLEFT")
-    pbLine:SetPoint("BOTTOMRIGHT")
-    profBar:Hide()
+    -- top bar: professions (icon + level) on the left, the buttons on the right
+    profBar = CreateFrame("Frame", nil, lh)
+    profBar:SetPoint("TOPLEFT", lh, "TOPLEFT")
+    profBar:SetPoint("BOTTOMLEFT", lh, "BOTTOMLEFT")
+    profBar:SetPoint("RIGHT", cfgL, "LEFT", -6, 0)
+    if profBar.SetClipsChildren then profBar:SetClipsChildren(true) end
+    profBar:SetScript("OnShow", function() ns:SyncProfButtons() end)
+    profBar:SetScript("OnHide", function() ns:SyncProfButtons() end)
     ns.profBar = profBar
+    ns.searchRow = searchRow
 
     listScroll, listContent = Scroller(listView)
     listScroll:SetPoint("TOPLEFT", listView, "TOPLEFT", 0, -2)
@@ -2647,6 +2705,10 @@ local function OnEvent(self, event, ...)
             ns.holdPeek = nil
         end
     elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" or event == "ZONE_CHANGED_NEW_AREA" then
+        -- the state driver shows the profession buttons after combat: hide the ones that should not be
+        if event == "PLAYER_REGEN_ENABLED" and C_Timer and C_Timer.After then
+            C_Timer.After(0.1, function() if profPending then ns:UpdateProfessions() else ns:SyncProfButtons() end end)
+        end
         if event == "PLAYER_REGEN_ENABLED" and ns.combatMin then
             ns.combatMin = nil
             if settings.min and not ns.peek then ns:Minimize(false) end
